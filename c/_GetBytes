@@ -3,11 +3,11 @@
 #include "DUMMYFS.h"
 #endif
 
-_kernel_oserror *fsentry_getbytes( FSEntry_GetBytes_Parameter *parm )
+_kernel_oserror *fsentry_getbytes(FSEntry_GetBytes_Parameter * parm)
 {
-        _kernel_oserror *err;
+    _kernel_oserror *err;
 
-        err = &mb_nfserr_DummyFSDoesNothing;
+    err = &mb_nfserr_DummyFSDoesNothing;
 
-        return err;
+    return err;
 }

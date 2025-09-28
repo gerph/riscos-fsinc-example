@@ -3,28 +3,28 @@
 #include "DUMMYFS.h"
 #endif
 
-_kernel_oserror *fsentry_open( FSEntry_Open_Parameter *parm )
+_kernel_oserror *fsentry_open(FSEntry_Open_Parameter * parm)
 {
-        _kernel_oserror *err;
+    _kernel_oserror *err;
 
-        switch ( parm->open_definition.reason )
-        {
+    switch (parm->open_definition.reason)
+    {
         case FSEntry_Open_Reason_Update:
-                err = &mb_nfserr_DummyFSDoesNothing;
-                break;
+            err = &mb_nfserr_DummyFSDoesNothing;
+            break;
 
         case FSEntry_Open_Reason_OpenRead:
-                err = &mb_nfserr_DummyFSDoesNothing;
-                break;
+            err = &mb_nfserr_DummyFSDoesNothing;
+            break;
 
         case FSEntry_Open_Reason_CreateUpdate:
-                err = &mb_nfserr_DummyFSDoesNothing;
-                break;
+            err = &mb_nfserr_DummyFSDoesNothing;
+            break;
 
         default:
-                err = &mb_nfserr_BadParameters;
-                break;
-        }
+            err = &mb_nfserr_BadParameters;
+            break;
+    }
 
-        return err;
+    return err;
 }

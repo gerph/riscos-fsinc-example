@@ -5,6 +5,6 @@
 #ifndef __DUMMYFSSTATIC_H
 #define __DUMMYFSSTATIC_H
 
-extern  char            my_command_parameter_buffer[ My_Command_Parameter_Buffer_Len ];
+extern char my_command_parameter_buffer[My_Command_Parameter_Buffer_Len];
 
 #endif

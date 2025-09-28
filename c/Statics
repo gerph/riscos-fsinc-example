@@ -9,4 +9,4 @@
 /*
         Static buffer for commands to get nul-terminated in (ugh!!)
 */
-char            my_command_parameter_buffer[ My_Command_Parameter_Buffer_Len ];
+char my_command_parameter_buffer[My_Command_Parameter_Buffer_Len];
