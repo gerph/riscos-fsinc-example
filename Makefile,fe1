@@ -1,92 +1,76 @@
-# This is the AMU control file to make the DummyFS module
+#!/usr/bin/env riscos-amu -f
+# Makefile for DummyFS
+#
 
-INCLUDEPATH=-ICLib:
-CFLAGS=-c -zM -zps0 -ffah
-CC=cc $(CFLAGS) $(INCLUDEPATH) 
+#
+# Program specific options:
+#
+COMPONENT  = DummyFS
 
-DummyFS :       rm.DummyFS
-                create DummyFS
+# Specifies additional targets for startup
+INITTARGET = inittarget
 
-lnk.DummyFS :   o.dummycmhg     \
-                o.ModuleWrap    \
-                o._Args         \
-                o._Close        \
-                o._File         \
-                o._Func         \
-                o._GBPB         \
-                o._GetBytes     \
-                o._Open         \
-                o._PutBytes     \
-                o.Interface     \
-                o.RMInfo        \
-                o.Statics       \
-                o.allerrs       \
-                clib:o.stubs
-                stamp lnk.DummyFS
+# Specifies additional targets for clean
+CLEANTARGET = cleantarget
 
-rm.DummyFS :    lnk.DummyFS
-                link -o rm.DummyFS -rmf -via lnk.DummyFS 
+# Files to export as part of export_hdr or export_libs
+# To export to the standard C: path, you might use an export like:
+#   ${EXP_C_H}.${COMPONENT}SWIs
+# To export to the library in a subdirectory, use an export like:
+#   ${EXP_LIB}.${COMPONENT}.h.myheader
+EXPORTS    = ${EXP_C_H}.${COMPONENT}SWIs
 
-o.dummycmhg :   cmhg.dummycmhg
-                cmhg cmhg.dummycmhg o.dummycmhg
+# Resources you want to be exported as part of the 'resources' phase of the build
+#RESOURCES  = ${RESDIR}.${COMPONENT}.Messages
 
-h.DummyFS :     CLib:h.kernel   \
-                CLib:h.swis     \
-                Consts.h        \
-                AllErrs.h       \
-                RMInfo.h        \
-                Statics.h       \
-                veneers.h       \
-                Interface.h     \
-                fsentries.h     \
-                ModuleWrap.h
-                stamp h.DummyFS
+# Comma-separated list of paths to use for includes, such as:
+#	C:LibName.
+INCLUDES   =
 
-o.Statics :     c.Statics       \
-                h.DummyFS
-                $(CC) Statics
+# Space separated list of libraries to link against, eg C:LibName.o.libLibName
+# (${CLIB} is implicit, unless NOCLIB = yes)
+LIBS       =
 
-o.ModuleWrap :  c.ModuleWrap    \
-                h.DummyFS
-                $(CC) ModuleWrap
+# Space separated list of defines to set, eg -DDEBUG
+CDEFINES   =
 
-o._Args :       c._Args         \
-                h.DummyFS
-                $(CC) _Args
+# Objects to build, using the format o.<name> (will be varied for build type)
+OBJS       = o._Args \
+             o._Close \
+             o._File \
+             o._Func \
+             o._GBPB \
+             o._GetBytes \
+             o._Open \
+             o._PutBytes \
+             o.allerrs \
+             o.modhead \
+             o.Interface \
+             o.module \
+             o.RMInfo \
+             o.Statics \
 
-o._Close :      c._Close        \
-                h.DummyFS
-                $(CC) _Close
 
-o._File :       c._File         \
-                h.DummyFS
-                $(CC) _File
+include CModule
 
-o._Func :       c._Func         \
-                h.DummyFS
-                $(CC) _Func
+# Additional dependencies
+$(OZDIR).module: h.modhead
 
-o._GBPB :       c._GBPB         \
-                h.DummyFS
-                $(CC) _GBPB
+# Export rules
+# For any files you export with EXPORTS you may need to include an
+# export rule
+${EXP_C_H}.${COMPONENT}SWIs: cmhg.modhead
+       ${CMHG} ${CMHGFLAGS} -xh $@ cmhg.modhead
+# To export bare files you can use the ${CP} command:
+# ${EXP_LIB}.${COMPONENT}.h.myheader: h.myheader
+#        ${CP} $?  $@  ${CPFLAGS}
 
-o._GetBytes :   c._GetBytes     \
-                h.DummyFS
-                $(CC) _GetBytes
+cleantarget:
+           ${DESTROY} h.modhead
+# This clean target removes any module header file that was built.
+inittarget:
+           ${MKDIR} h
+# This init target ensures that the header directory is created
 
-o._Open :       c._Open         \
-                h.DummyFS
-                $(CC) _Open
-
-o._PutBytes :   c._PutBytes     \
-                h.DummyFS
-                $(CC) _PutBytes
-
-o.Interface :   asm.Interface
-                objasm -F asm.Interface -T o.Interface -q -s
-
-o.RMInfo :      asm.RMInfo
-                objasm asm.RMInfo o.RMInfo -stamp -quit
-
-o.allerrs :     asm.allerrs
-                objasm asm.allerrs o.allerrs -stamp -quit
+#---------------------------------------------------------------------------
+# Dynamic dependencies:
