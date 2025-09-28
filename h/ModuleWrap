@@ -1,0 +1,10 @@
+/*
+        These routines get used by the cmhg generated header.
+*/
+#ifndef __DUMMYFSMODULEWRAP_H
+#define __DUMMYFSMODULEWRAP_H
+extern _kernel_oserror *dummyfs_command( char *, int, int, void * );
+extern _kernel_oserror *dummyfs_swi( int, _kernel_swi_regs *, void * );
+extern void dummyfs_service( int, _kernel_swi_regs *, void * );
+extern _kernel_oserror *dummyfs_initialise( char *, int, void * );
+#endif

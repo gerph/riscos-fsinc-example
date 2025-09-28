@@ -1,0 +1,62 @@
+
+#ifndef __DUMMYFSDUMMYFS_H
+#include "DUMMYFS.h"
+#endif
+
+_kernel_oserror *fsentry_file( FSEntry_File_Parameter *parm )
+{
+        _kernel_oserror *err;
+
+        switch ( parm->reason )
+        {
+        case FSEntry_File_Reason_LoadFile:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_File_Reason_CreateFile:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_File_Reason_SaveFile:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_File_Reason_WriteCatalogueInformation:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_File_Reason_WriteLoadAddress:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_File_Reason_WriteExecutionAddress:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_File_Reason_WriteAttributes:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_File_Reason_ReadCatalogueInformationNoLength:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_File_Reason_ReadCatalogueInformation:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_File_Reason_DeleteObject:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_File_Reason_CreateDirectory:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        default:
+                err = &mb_nfserr_BadParameters;
+                break;
+        }
+
+        return err;
+}

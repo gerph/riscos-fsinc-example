@@ -1,0 +1,92 @@
+# This is the AMU control file to make the DummyFS module
+
+INCLUDEPATH=-ICLib:
+CFLAGS=-c -zM -zps0 -ffah
+CC=cc $(CFLAGS) $(INCLUDEPATH) 
+
+DummyFS :       rm.DummyFS
+                create DummyFS
+
+lnk.DummyFS :   o.dummycmhg     \
+                o.ModuleWrap    \
+                o._Args         \
+                o._Close        \
+                o._File         \
+                o._Func         \
+                o._GBPB         \
+                o._GetBytes     \
+                o._Open         \
+                o._PutBytes     \
+                o.Interface     \
+                o.RMInfo        \
+                o.Statics       \
+                o.allerrs       \
+                clib:o.stubs
+                stamp lnk.DummyFS
+
+rm.DummyFS :    lnk.DummyFS
+                link -o rm.DummyFS -rmf -via lnk.DummyFS 
+
+o.dummycmhg :   cmhg.dummycmhg
+                cmhg cmhg.dummycmhg o.dummycmhg
+
+h.DummyFS :     CLib:h.kernel   \
+                CLib:h.swis     \
+                Consts.h        \
+                AllErrs.h       \
+                RMInfo.h        \
+                Statics.h       \
+                veneers.h       \
+                Interface.h     \
+                fsentries.h     \
+                ModuleWrap.h
+                stamp h.DummyFS
+
+o.Statics :     c.Statics       \
+                h.DummyFS
+                $(CC) Statics
+
+o.ModuleWrap :  c.ModuleWrap    \
+                h.DummyFS
+                $(CC) ModuleWrap
+
+o._Args :       c._Args         \
+                h.DummyFS
+                $(CC) _Args
+
+o._Close :      c._Close        \
+                h.DummyFS
+                $(CC) _Close
+
+o._File :       c._File         \
+                h.DummyFS
+                $(CC) _File
+
+o._Func :       c._Func         \
+                h.DummyFS
+                $(CC) _Func
+
+o._GBPB :       c._GBPB         \
+                h.DummyFS
+                $(CC) _GBPB
+
+o._GetBytes :   c._GetBytes     \
+                h.DummyFS
+                $(CC) _GetBytes
+
+o._Open :       c._Open         \
+                h.DummyFS
+                $(CC) _Open
+
+o._PutBytes :   c._PutBytes     \
+                h.DummyFS
+                $(CC) _PutBytes
+
+o.Interface :   asm.Interface
+                objasm -F asm.Interface -T o.Interface -q -s
+
+o.RMInfo :      asm.RMInfo
+                objasm asm.RMInfo o.RMInfo -stamp -quit
+
+o.allerrs :     asm.allerrs
+                objasm asm.allerrs o.allerrs -stamp -quit

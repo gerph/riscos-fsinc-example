@@ -1,0 +1,10 @@
+/*
+        Here is where all the RISC OS NFS global data structures are defined
+*/
+
+#ifndef __DUMMYFSSTATIC_H
+#define __DUMMYFSSTATIC_H
+
+extern  char            my_command_parameter_buffer[ My_Command_Parameter_Buffer_Len ];
+
+#endif

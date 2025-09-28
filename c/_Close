@@ -1,0 +1,9 @@
+
+#ifndef __DUMMYFSDUMMYFS_H
+#include "DUMMYFS.h"
+#endif
+
+_kernel_oserror *fsentry_close( FSEntry_Close_Parameter *parm )
+{
+        return &mb_nfserr_DummyFSDoesNothing;
+}

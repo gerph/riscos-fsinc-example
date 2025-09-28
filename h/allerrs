@@ -1,0 +1,14 @@
+/*
+     Declarations for error blocks for RISC OS NFS
+*/
+
+#ifndef __DUMMYFSALLERRS_H
+#define __DUMMYFSALLERRS_H
+#ifndef _kernel_HOST_UNDEFINED
+#include "kernel.h"
+#endif
+
+extern _kernel_oserror mb_malloc_failed;
+extern _kernel_oserror mb_nfserr_BadParameters;
+extern _kernel_oserror mb_nfserr_DummyFSDoesNothing;
+#endif

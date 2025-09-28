@@ -1,0 +1,4 @@
+#ifndef __DUMMYFSRMINFO_H
+#define __DUMMYFSRMINFO_H
+extern const int *Image_RO_Base;
+#endif

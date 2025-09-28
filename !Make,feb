@@ -1,0 +1,1 @@
+amu -f amu.makefile -k %*0

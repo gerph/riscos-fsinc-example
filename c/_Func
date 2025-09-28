@@ -1,0 +1,104 @@
+#ifndef __DUMMYFSDUMMYFS_H
+#include "DUMMYFS.h"
+#endif
+
+_kernel_oserror *fsentry_func
+(
+        FSEntry_Func_Parameter *parm
+)
+{
+        _kernel_oserror *err;
+
+        switch ( parm->reason )
+        {
+        case FSEntry_Func_Reason_SetCurrentDirectory:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Func_Reason_SetLibraryDirectory:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Func_Reason_CatalogueDirectory:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Func_Reason_ExamineCurrentDirectory:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Func_Reason_CatalogueLibraryDirectory:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Func_Reason_ExamineLibraryDirectory:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Func_Reason_ExamineObjects:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Func_Reason_SetFilingSystemOptions:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Func_Reason_RenameObject:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Func_Reason_AccessObjects:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Func_Reason_BootFilingSystem:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Func_Reason_ReadNameAndBootOptionOfDisc:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Func_Reason_ReadCurrentDirectoryNameAndPrivilegeByte:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Func_Reason_ReadLibraryDirectoryNameAndPrivilegeByte:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Func_Reason_ReadDirectoryEntries:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Func_Reason_ReadDirectoriesAndInformation:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Func_Reason_ShutDown:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Func_Reason_PrintStartUpBanner:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Func_Reason_SetDirectoryContexts:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Func_Reason_ReadDirectoryEntriesAndInformation:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Func_Reason_OutputFullInformationOnObjects:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        default:
+                err = &mb_nfserr_BadParameters;
+                break;
+        }
+
+        return err;
+}

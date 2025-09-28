@@ -1,0 +1,12 @@
+/*
+        Here is where all the RISC OS NFS global data structures are defined
+*/
+
+#ifndef __DUMMYFSDUMMYFS_H
+#include "DUMMYFS.h"
+#endif
+
+/*
+        Static buffer for commands to get nul-terminated in (ugh!!)
+*/
+char            my_command_parameter_buffer[ My_Command_Parameter_Buffer_Len ];

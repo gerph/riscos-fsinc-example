@@ -1,0 +1,58 @@
+
+#ifndef __DUMMYFSDUMMYFS_h
+#include "DUMMYFS.h"
+#endif
+
+_kernel_oserror *fsentry_args( FSEntry_Args_Parameter *parm )
+{
+        _kernel_oserror *err;
+
+        switch( parm->reason )
+        {
+        case FSEntry_Args_Reason_ReadSequentialFilePointer:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Args_Reason_WriteSequentialFilePointer:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Args_Reason_ReadFileExtent:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Args_Reason_WriteFileExtent:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Args_Reason_ReadSizeAllocatedToFile:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Args_Reason_EOFCheck:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Args_Reason_FlushFileBuffer:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Args_Reason_EnsureFileSize:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Args_Reason_WriteZerosToFile:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        case FSEntry_Args_Reason_ReadFileDateStamp:
+                err = &mb_nfserr_DummyFSDoesNothing;
+                break;
+
+        default:
+                err = &mb_nfserr_BadParameters;
+                break;
+        }
+
+        return err;
+}

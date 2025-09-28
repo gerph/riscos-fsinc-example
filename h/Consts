@@ -1,0 +1,18 @@
+/*
+        RISC OS NFS constants
+*/
+
+#ifndef __DUMMYFSCONSTS_H
+#define __DUMMYFSCONSTS_H
+
+#define My_Command_Parameter_Buffer_Len 256
+#define FilingSystemName                "DummyFS"
+#define FSControl_AddFilingSystem       12
+#define FSControl_SelectFilingSystem    14
+#define FSControl_RemoveFilingSystem    16
+#define Information_Block_Size          11
+#define Information_Word                0x04000021
+#define Service_FSRedeclare             0x40
+#define ASpace                          ' '
+
+#endif
