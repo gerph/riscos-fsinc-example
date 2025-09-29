@@ -1,6 +1,6 @@
 
 #ifndef __DUMMYFSDUMMYFS_H
-#include "DUMMYFS.h"
+#include "dummyfs.h"
 #endif
 
 _kernel_oserror *fsentry_gbpb(FSEntry_GBPB_Parameter * parm)
@@ -10,23 +10,23 @@ _kernel_oserror *fsentry_gbpb(FSEntry_GBPB_Parameter * parm)
     switch (parm->reason)
     {
         case FSEntry_GBPB_Reason_PutMultipleBytesHere:
-            err = &mb_nfserr_DummyFSDoesNothing;
+            err = err_DoesNothing;
             break;
 
         case FSEntry_GBPB_Reason_PutMultipleBytes:
-            err = &mb_nfserr_DummyFSDoesNothing;
+            err = err_DoesNothing;
             break;
 
         case FSEntry_GBPB_Reason_GetMultipleBytesHere:
-            err = &mb_nfserr_DummyFSDoesNothing;
+            err = err_DoesNothing;
             break;
 
         case FSEntry_GBPB_Reason_GetMultipleBytes:
-            err = &mb_nfserr_DummyFSDoesNothing;
+            err = err_DoesNothing;
             break;
 
         default:
-            err = &mb_nfserr_BadParameters;
+            err = err_BadParameters;
             break;
     }
 

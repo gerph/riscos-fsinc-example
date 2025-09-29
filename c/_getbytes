@@ -1,13 +1,13 @@
 
 #ifndef __DUMMYFSDUMMYFS_H
-#include "DUMMYFS.h"
+#include "dummyfs.h"
 #endif
 
 _kernel_oserror *fsentry_getbytes(FSEntry_GetBytes_Parameter * parm)
 {
     _kernel_oserror *err;
 
-    err = &mb_nfserr_DummyFSDoesNothing;
+    err = err_DoesNothing;
 
     return err;
 }

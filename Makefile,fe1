@@ -35,26 +35,27 @@ LIBS       =
 CDEFINES   =
 
 # Objects to build, using the format o.<name> (will be varied for build type)
-OBJS       = o._Args \
-             o._Close \
-             o._File \
-             o._Func \
-             o._GBPB \
-             o._GetBytes \
-             o._Open \
-             o._PutBytes \
-             o.allerrs \
+OBJS       = o._args \
+             o._close \
+             o._file \
+             o._func \
+             o._gbpb \
+             o._getbytes \
+             o._open \
+             o._putbytes \
              o.modhead \
-             o.Interface \
+             o.interface \
              o.module \
-             o.RMInfo \
-             o.Statics \
+             o.rminfo \
+             o.statics \
 
 
 include CModule
 
 # Additional dependencies
 $(OZDIR).module: h.modhead
+$(OZDIR).rminfo: h.modhead
+$(OZDIR).statics: h.modhead
 
 # Export rules
 # For any files you export with EXPORTS you may need to include an

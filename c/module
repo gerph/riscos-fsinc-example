@@ -7,7 +7,7 @@ Revision History:
 */
 
 #ifndef __DUMMYFSDUMMYFS_H
-#include "DUMMYFS.h"
+#include "dummyfs.h"
 #endif
 
 /*
@@ -23,7 +23,7 @@ _kernel_oserror *dummyfs_swi(int swi_number, _kernel_swi_regs * r, void *private
     switch (swi_number)
     {
         default:
-            err = &mb_nfserr_DummyFSDoesNothing;
+            err = err_DoesNothing;
             break;
     }
 
@@ -80,7 +80,8 @@ static _kernel_oserror *declare_dummyfs(void *private_word)
 /*
         This is the initialisation code for DummyFS
 */
-_kernel_oserror *dummyfs_initialise(char *cmd_tail, int podule_base, void *private_word)
+_kernel_oserror *dummyfs_initialise(const char *cmd_tail, int podule_base,
+                                    void *private_word)
 {
     _kernel_oserror *err;
 
@@ -127,7 +128,8 @@ void dummyfs_service(int service_number, _kernel_swi_regs * r, void *private_wor
 /*
         DummyFS command processor
 */
-_kernel_oserror *dummyfs_command(char *arg_string, int argc, int cmd_no, void *private_word)
+_kernel_oserror *dummyfs_command(const char *arg_string, int argc,
+                                 int cmd_no, void *private_word)
 {
     _kernel_oserror *err = NULL;
     _kernel_swi_regs r;
@@ -165,7 +167,7 @@ _kernel_oserror *dummyfs_command(char *arg_string, int argc, int cmd_no, void *p
             break;
 
         default:
-            err = &mb_nfserr_DummyFSDoesNothing;
+            err = err_DoesNothing;
             break;
     }
 

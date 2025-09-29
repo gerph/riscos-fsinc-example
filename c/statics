@@ -3,7 +3,7 @@
 */
 
 #ifndef __DUMMYFSDUMMYFS_H
-#include "DUMMYFS.h"
+#include "dummyfs.h"
 #endif
 
 /*

@@ -31,3 +31,10 @@ command-keyword-table: dummyfs_command
                 invalid-syntax: "Syntax:\t*DummyFS",
                 add-syntax: )
 
+; Register a different error base for your module - DO NOT USE THIS BASE.
+error-base: &12100
+
+; Add any error identifiers that you wish to use here.
+error-identifiers: err_NoMemory("Not enough free memory"),
+                   err_BadParameters("Bad parameters passed internally"),
+                   err_DoesNothing("This dummy filing system does nothing")

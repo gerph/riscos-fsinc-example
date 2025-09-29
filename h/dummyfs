@@ -19,28 +19,24 @@
 #endif
 
 #ifndef __DUMMYFSCONSTS_H
-#include "Consts.h"
-#endif
-#ifndef __DUMMYFSALLERRS_H
-#include "AllErrs.h"
+#include "consts.h"
 #endif
 #ifndef __DUMMYFSRMINFO_H
-#include "RMInfo.h"
+#include "rminfo.h"
 #endif
 #ifndef __DUMMYFSSTATIC_H
-#include "Statics.h"
+#include "statics.h"
 #endif
 #ifndef __veneers_h
 #include "veneers.h"
 #endif
 #ifndef __DUMMYFSINTERFACE_H
-#include "Interface.h"
+#include "interface.h"
 #endif
 #ifndef __DUMMYFSENTRIES_H
 #include "fsentries.h"
 #endif
-#ifndef __DUMMYFSMODULEWRAP_H
-#include "ModuleWrap.h"
-#endif
+
+#include "modhead.h"
 
 #endif
