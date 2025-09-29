@@ -57,21 +57,21 @@ static _kernel_oserror *declare_dummyfs(void *private_word)
     _kernel_swi_regs r;
     int information_block[Information_Block_Size];
 
-    information_block[0] = (int) FilingSystemName - (int) Image_RO_Base;
-    information_block[1] = (int) "DummyFS (Development version)" - (int) Image_RO_Base;
-    information_block[2] = (int) &veneer_fsentry_open - (int) Image_RO_Base;
-    information_block[3] = (int) &veneer_fsentry_getbytes - (int) Image_RO_Base;
-    information_block[4] = (int) &veneer_fsentry_putbytes - (int) Image_RO_Base;
-    information_block[5] = (int) &veneer_fsentry_args - (int) Image_RO_Base;
-    information_block[6] = (int) &veneer_fsentry_close - (int) Image_RO_Base;
-    information_block[7] = (int) &veneer_fsentry_file - (int) Image_RO_Base;
+    information_block[0] = (int) FilingSystemName - (int) Image__RO_Base;
+    information_block[1] = (int) "DummyFS (Development version)" - (int) Image__RO_Base;
+    information_block[2] = (int) &veneer_fsentry_open - (int) Image__RO_Base;
+    information_block[3] = (int) &veneer_fsentry_getbytes - (int) Image__RO_Base;
+    information_block[4] = (int) &veneer_fsentry_putbytes - (int) Image__RO_Base;
+    information_block[5] = (int) &veneer_fsentry_args - (int) Image__RO_Base;
+    information_block[6] = (int) &veneer_fsentry_close - (int) Image__RO_Base;
+    information_block[7] = (int) &veneer_fsentry_file - (int) Image__RO_Base;
     information_block[8] = Information_Word;
-    information_block[9] = (int) &veneer_fsentry_func - (int) Image_RO_Base;
-    information_block[10] = (int) &veneer_fsentry_gbpb - (int) Image_RO_Base;
+    information_block[9] = (int) &veneer_fsentry_func - (int) Image__RO_Base;
+    information_block[10] = (int) &veneer_fsentry_gbpb - (int) Image__RO_Base;
 
     r.r[0] = FSControl_AddFilingSystem;
-    r.r[1] = (int) Image_RO_Base;
-    r.r[2] = (int) information_block - (int) Image_RO_Base;
+    r.r[1] = (int) Image__RO_Base;
+    r.r[2] = (int) information_block - (int) Image__RO_Base;
     r.r[3] = (int) private_word;
 
     return _kernel_swi(XOS_Bit | OS_FSControl, &r, &r);

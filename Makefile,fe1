@@ -46,11 +46,13 @@ OBJS       = o._args \
              o.modhead \
              o.interface \
              o.module \
-             o.rminfo \
              o.statics \
 
 
 include CModule
+
+# We want Image__RO_Base defined.
+CMHGFLAGS_BASE += -zbase
 
 # Additional dependencies
 $(OZDIR).module: h.modhead
