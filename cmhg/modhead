@@ -1,13 +1,15 @@
 ; CMHG file for the dummy filesystem
 ;
 
-; <module-is-runnable:> - NO
-
 #include "VersionNum"
+
+#include "riscos/Services.h"
 
 initialisation-code: dummyfs_initialise
 
-service-call-handler: dummyfs_service
+; Always give the service numbers that you are interested in receiving.
+service-call-handler: dummyfs_service \
+                      Service_FSRedeclare
 
 title-string: DummyFS
 
@@ -21,10 +23,6 @@ swi-handler-code: dummyfs_swi
 
 swi-decoding-table: DummyFS,
                     DoNothing
-
-; <swi-decoding-code:> <swi_decoder> - NO
-
-; <irq-handlers:> <entry_name>/<handler_name> ... - NO
 
 command-keyword-table: dummyfs_command
 
