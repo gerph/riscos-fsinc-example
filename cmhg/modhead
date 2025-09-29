@@ -1,7 +1,9 @@
-; cmhg control file for nfs
+; CMHG file for the dummy filesystem
 ;
 
 ; <module-is-runnable:> - NO
+
+#include "VersionNum"
 
 initialisation-code: dummyfs_initialise
 
@@ -9,7 +11,7 @@ service-call-handler: dummyfs_service
 
 title-string: DummyFS
 
-help-string: DummyFS 0.00 Development Version
+help-string: DummyFS Module_MajorVersion_CMHG Development Version
 
 ; When writing your own filing systm DO NOT USE THIS SWI CHUNK as it
 ; has already been used.
@@ -18,7 +20,7 @@ swi-chunk-base-number: 0x410C0
 swi-handler-code: dummyfs_swi
 
 swi-decoding-table: DummyFS,
-                        DoNothing
+                    DoNothing
 
 ; <swi-decoding-code:> <swi_decoder> - NO
 
@@ -26,8 +28,8 @@ swi-decoding-table: DummyFS,
 
 command-keyword-table: dummyfs_command
 
-        dummyfs(min-args:0, max-args:0,
-                help-text: "*DummyFS selects DummyFS as the current filing system\r"
-                        "Syntax:\t*DummyFS\r",
-                invalid-syntax: "Syntax:\t*DummyFS\r" )
+        DummyFS(min-args:0, max-args:0,
+                help-text: "*DummyFS selects DummyFS as the current filing system.\r",
+                invalid-syntax: "Syntax:\t*DummyFS",
+                add-syntax: )
 
