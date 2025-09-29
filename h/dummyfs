@@ -4,38 +4,17 @@
 #ifndef __DUMMYFSDUMMYFS_H
 #define __DUMMYFSDUMMYFS_H
 
-#ifndef __stdio_h
 #include <stdio.h>
-#endif
-#ifndef __stdlib_h
 #include <stdlib.h>
-#endif
 
-#ifndef _kernel_HOST_UNDEFINED
 #include "kernel.h"
-#endif
-#ifndef __swis_h
 #include "swis.h"
-#endif
 
-#ifndef __DUMMYFSCONSTS_H
 #include "consts.h"
-#endif
-#ifndef __DUMMYFSRMINFO_H
-#include "rminfo.h"
-#endif
-#ifndef __DUMMYFSSTATIC_H
 #include "statics.h"
-#endif
-#ifndef __veneers_h
 #include "veneers.h"
-#endif
-#ifndef __DUMMYFSINTERFACE_H
 #include "interface.h"
-#endif
-#ifndef __DUMMYFSENTRIES_H
 #include "fsentries.h"
-#endif
 
 #include "modhead.h"
 
