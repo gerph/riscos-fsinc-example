@@ -1,7 +1,7 @@
 %YAML 1.0
 ---
 
-# Example .robuild.yml file
+# RISC OS build file to execute on https://build.riscos.online/
 
 # Source is optional (NYI), and should be a URL to source the content from
 #source: <url>
@@ -15,7 +15,9 @@ jobs:
     env:
       "Sys$Environment": ROBuild
       "BUILD32": 1
-      "Alias$amu": "hostamu %*0"
+
+      # Faster building using the host toolchain
+      "Alias$AMU": "HostAMU %*0"
 
     # Directory to change to before running script
     #dir: <working directory>
@@ -23,7 +25,22 @@ jobs:
     # Commands which should be executed to perform the build.
     # The build will terminate if any command returns a non-0 return code or an error.
     script:
-      - amu -f Makefile ram
+
+      - echo
+      - echo *** Build the component ***
+      - amu -f Makefile ram  
+
+      # Don't RMLoad as we don't support the FileSystem add interfaces in Pyromaniac.
+      #- echo
+      #- echo *** Load the module ***
+      #- RMLoad rm32.DummyFS
+
+      #- echo
+      #- echo *** Kill the module ***
+      #- RMKill DummyFS
+
+      - echo
+      - echo *** SUCCESS ***
 
     # Outputs from the build are defined in artifacts
     # These are a list of artifacts to report directories or files.
