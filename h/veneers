@@ -1,14 +1,21 @@
-/*
-        Defines the types and parameter structures used to interface
-        C to FileSwitch's fsentry_* entry points.
-
-        Each parameter structure's fields occupy the same word
-        position as the register FileSwitch/the assembler veneer in
-        s.interface places it in, so the union/struct layout below
-        can be read directly in place of decoding raw registers. See
-        prminxml/fsinc.xml for the full register-to-field mapping for
-        each entry point.
-*/
+/*******************************************************************
+ * File:        veneers
+ * Purpose:     Defines the types and parameter structures used to
+ *              interface C to FileSwitch's fsentry_* entry points
+ *              (declared in h.fsentries, implemented in c._open,
+ *              c._getbytes, c._putbytes, c._args, c._close, c._file,
+ *              c._func and c._gbpb).
+ *
+ *              Each parameter structure's fields occupy the same
+ *              word position as the register FileSwitch/the
+ *              assembler veneer in s.interface places it in, so the
+ *              union/struct layout below can be read directly in
+ *              place of decoding raw registers. See
+ *              prminxml/fsinc.xml for the full register-to-field
+ *              mapping for each entry point.
+ * Author:      YOUR NAME HERE
+ * Date:        07 Aug 2026
+ ******************************************************************/
 
 #ifndef __veneers_h
 #define __veneers_h

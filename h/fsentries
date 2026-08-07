@@ -1,175 +1,49 @@
-/*
-        fsentry functions
-
-        These are the C functions which implement the filing system's
-        response to each FileSwitch entry point. They are called, one
-        parameter structure pointer per call, by the assembler veneers
-        declared in h.interface; you should not call them directly
-        yourself. See prminxml/fsinc.xml for the full description of
-        each entry point, its reason codes, and the register layout
-        each parameter structure mirrors.
-*/
+/*******************************************************************
+ * File:        fsentries
+ * Purpose:     Declares the fsentry_* functions which implement the
+ *              filing system's response to each FileSwitch entry
+ *              point. They are called, one parameter structure
+ *              pointer per call, by the assembler veneers declared
+ *              in h.interface (implemented in s.interface); you
+ *              should not call them directly yourself. See the full
+ *              prologue for each function in the .c file named
+ *              below, and prminxml/fsinc.xml for the full
+ *              description of each entry point and its reason codes.
+ * Author:      YOUR NAME HERE
+ * Date:        07 Aug 2026
+ ******************************************************************/
 
 #ifndef __DUMMYFSFSENTRIES_H
 #define __DUMMYFSFSENTRIES_H
 
-/*******************************************************************
- Function:      fsentry_open
- Description:   Open a file, directory, or other object for access,
-                 or create one if the reason code requires it.
- Parameters:    parm->open_definition.reason = the access mode requested
-                    (FSEntry_Open_Reason_OpenRead, _CreateUpdate or
-                    _Update)
-                 parm->open_definition.filename = pointer to the full
-                    pathname of the object to open
-                 parm->open_definition.handle = the FileSwitch handle
-                    that will identify this open file elsewhere in the
-                    system
-                 parm->open_definition.special_field = pointer to any
-                    filing-system-specific text following the pathname,
-                    or NULL if none was given
- Returns:       NULL, with parm->open_result filled in (information
-                    word, FileSystemHandle, buffer size, extent and
-                    allocated space), on success; otherwise a pointer
-                    to an error block
- ******************************************************************/
+/* fsentry_open (c._open): open a file, directory, or other object
+   for access, or create one if the reason code requires it. */
 extern _kernel_oserror *fsentry_open(FSEntry_Open_Parameter *);
 
-/*******************************************************************
- Function:      fsentry_getbytes
- Description:   Read one byte, or a block of bytes, from an open file.
-                 Called either once per byte (unbuffered transfer) or
-                 once per block (buffered transfer), depending on the
-                 buffer size returned from fsentry_open.
- Parameters:    parm->getbytes_definition.handle = the FileSystemHandle
-                    returned from fsentry_open
-                 parm->getbytes_definition.destination_start = buffer
-                    address to read into (buffered transfer only)
-                 parm->getbytes_definition.bytes_to_read = number of
-                    bytes to read (buffered transfer only)
-                 parm->getbytes_definition.file_offset_to_get_data_from
-                    = file offset to read from (buffered transfer only)
- Returns:       NULL, with parm->getbytes_result filled in (the byte
-                    read and a YesNoAnswer flag, for an unbuffered
-                    read), on success; otherwise a pointer to an error
-                    block
- ******************************************************************/
+/* fsentry_getbytes (c._getbytes): read one byte, or a block of
+   bytes, from an open file. */
 extern _kernel_oserror *fsentry_getbytes(FSEntry_GetBytes_Parameter *);
 
-/*******************************************************************
- Function:      fsentry_putbytes
- Description:   Write one byte, or a block of bytes, to an open file.
-                 Called either once per byte (unbuffered transfer) or
-                 once per block (buffered transfer), matching the mode
-                 established by fsentry_open. Writing past the current
-                 end of the file should extend it.
- Parameters:    parm->byte_to_put = the byte to write (unbuffered
-                    transfer only)
-                 parm->handle = the FileSystemHandle returned from
-                    fsentry_open
-                 parm->source_start = buffer address to write from
-                    (buffered transfer only)
-                 parm->bytes_to_write = number of bytes to write
-                    (buffered transfer only)
-                 parm->file_offset_to_put_data_to = file offset to
-                    write to (buffered transfer only)
- Returns:       NULL on success, otherwise a pointer to an error block
- ******************************************************************/
+/* fsentry_putbytes (c._putbytes): write one byte, or a block of
+   bytes, to an open file. */
 extern _kernel_oserror *fsentry_putbytes(FSEntry_PutBytes_Parameter *);
 
-/*******************************************************************
- Function:      fsentry_args
- Description:   Perform a miscellaneous operation on an already-open
-                 file: moving the sequential file pointer, reading or
-                 changing the file's extent, flushing buffered output,
-                 pre-allocating space, writing zeros, or reading the
-                 file's datestamp.
- Parameters:    parm->reason = which operation to perform, see
-                    FSEntry_Args_Reason and prminxml/fsinc.xml
-                 parm->handle = the FileSystemHandle returned from
-                    fsentry_open
-                 parm->arg = the argument for the requested operation,
-                    and where applicable the place to write its result
- Returns:       NULL on success, otherwise a pointer to an error block
- ******************************************************************/
+/* fsentry_args (c._args): miscellaneous operations on an
+   already-open file. */
 extern _kernel_oserror *fsentry_args(FSEntry_Args_Parameter *);
 
-/*******************************************************************
- Function:      fsentry_close
- Description:   Close a previously-opened file: flush any buffered
-                 data, release any resources held for the handle, and
-                 optionally re-stamp the file's load and execute
-                 addresses. The handle is invalid for any further call
-                 once this returns successfully.
- Parameters:    parm->handle = the FileSystemHandle returned from
-                    fsentry_open
-                 parm->info = new load and execute addresses to stamp
-                    on the file, or zero/zero to leave them unchanged
- Returns:       NULL on success, otherwise a pointer to an error block
- ******************************************************************/
+/* fsentry_close (c._close): close a previously-opened file. */
 extern _kernel_oserror *fsentry_close(FSEntry_Close_Parameter *);
 
-/*******************************************************************
- Function:      fsentry_file
- Description:   Perform a whole-object operation identified by
-                 pathname rather than by an open handle: load, save,
-                 create, delete, or read/write the catalogue entry of
-                 a file or directory. Corresponds to OS_File.
- Parameters:    parm->reason = which operation to perform, see
-                    FSEntry_File_Reason and prminxml/fsinc.xml
-                 parm->name = pointer to the full pathname of the
-                    object
-                 parm->info = load/execute addresses or datestamp,
-                    meaning dependent on the reason code
-                 parm->extras = length/attributes, or a memory
-                    start/end pair, meaning dependent on the reason
-                    code
-                 parm->special_field = pointer to any filing-system-
-                    specific text following the pathname, or NULL
- Returns:       NULL, with the object type and (where applicable)
-                    catalogue information filled in, on success;
-                    otherwise a pointer to an error block
- ******************************************************************/
+/* fsentry_file (c._file): whole-object operations identified by
+   pathname rather than by an open handle. */
 extern _kernel_oserror *fsentry_file(FSEntry_File_Parameter *);
 
-/*******************************************************************
- Function:      fsentry_func
- Description:   Perform a directory, path or filing-system-wide
-                 operation that does not belong to an individual open
-                 file: setting the current or library directory,
-                 cataloguing a directory, wildcard examine/rename/
-                 access, reading directory entries, filing system
-                 shutdown, and similar operations.
- Parameters:    parm->reason = which operation to perform, see
-                    FSEntry_Func_Reason and prminxml/fsinc.xml
-                 parm->first_parameter, parm->second_parameter,
-                    parm->third_parameter, parm->read_offset,
-                    parm->buffer_length, parm->special_field_1,
-                    parm->special_field_2 = arguments and result
-                    fields, meaning dependent on the reason code
- Returns:       NULL on success, otherwise a pointer to an error block
- ******************************************************************/
+/* fsentry_func (c._func): directory, path and filing-system-wide
+   operations. */
 extern _kernel_oserror *fsentry_func(FSEntry_Func_Parameter *);
 
-/*******************************************************************
- Function:      fsentry_gbpb
- Description:   Transfer multiple bytes to or from an already-open
-                 file at an explicit offset, or at the file's current
-                 sequential pointer. Only called when fsentry_open
-                 reported unbuffered GBPB support in the returned
-                 information word. Corresponds to OS_GBPB reasons 1-4.
- Parameters:    parm->reason = which transfer to perform, see
-                    FSEntry_GBPB_Reason and prminxml/fsinc.xml
-                 parm->handle = the FileSystemHandle returned from
-                    fsentry_open
-                 parm->address = buffer address to transfer to/from
-                 parm->number = number of bytes to transfer
-                 parm->sequential_file_pointer = file offset to
-                    transfer at, for the "here" reason codes
- Returns:       NULL, with parm->address, parm->number and
-                    parm->sequential_file_pointer updated to reflect
-                    the transfer actually made, on success; otherwise
-                    a pointer to an error block
- ******************************************************************/
+/* fsentry_gbpb (c._gbpb): multiple-byte transfer to/from an
+   already-open file at an explicit offset. */
 extern _kernel_oserror *fsentry_gbpb(FSEntry_GBPB_Parameter *);
 #endif

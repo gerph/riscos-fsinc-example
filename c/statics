@@ -1,6 +1,11 @@
-/*
-        Here is where all of DummyFS's global data structures are defined
-*/
+/*******************************************************************
+ * File:        statics
+ * Purpose:     Here is where all of DummyFS's global data structures
+ *              are defined; declared for the rest of the module in
+ *              h.statics, and used by c.module.
+ * Author:      YOUR NAME HERE
+ * Date:        07 Aug 2026
+ ******************************************************************/
 
 #ifndef __DUMMYFSDUMMYFS_H
 #include "dummyfs.h"

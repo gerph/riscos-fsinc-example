@@ -1,26 +1,38 @@
-/*
-        Implementation of the FSEntry_GBPB entry point. See the
-        prologue for fsentry_gbpb in h.fsentries for the parameters
-        and return convention, and prminxml/fsinc.xml for the full
-        description of each reason code.
-*/
+/*******************************************************************
+ * File:        _gbpb
+ * Purpose:     Implementation of the FSEntry_GBPB entry point. See
+ *              h.fsentries for where fsentry_gbpb is declared, and
+ *              prminxml/fsinc.xml for the full description of each
+ *              reason code.
+ * Author:      YOUR NAME HERE
+ * Date:        07 Aug 2026
+ ******************************************************************/
 
 #ifndef __DUMMYFSDUMMYFS_H
 #include "dummyfs.h"
 #endif
 
-/*
-        Multiple-byte transfer to/from an open file, selected by
-        parm->reason. See h.fsentries for the parameter block layout.
-        This entry point is only used when fsentry_open reported
-        unbuffered GBPB support in the returned information word.
-        parm->handle (R1), parm->address (R2) and parm->number (R3)
-        are meaningful for every reason code below; on exit, update
-        parm->address, parm->number (remaining, unwritten/unread
-        byte count - zero if the whole transfer completed) and
-        parm->sequential_file_pointer to reflect the transfer
-        actually made.
-*/
+/*******************************************************************
+ Function:      fsentry_gbpb
+ Description:   Transfer multiple bytes to or from an already-open
+                file at an explicit offset, or at the file's current
+                sequential pointer, selected by parm->reason. Only
+                called when fsentry_open (c._open) reported unbuffered
+                GBPB support in the returned information word.
+ Parameters:    parm-> the parameters (see h.fsentries for details)
+                    parm->handle (R1) identifies the open file, from
+                                    fsentry_open, for every reason code
+                    parm->address (R2) and parm->number (R3) give the
+                                    buffer and byte count for every
+                                    reason code; on exit, update them
+                                    (and parm->sequential_file_pointer)
+                                    to reflect the transfer actually
+                                    made, with parm->number left
+                                    holding the number of bytes not
+                                    transferred (0 if the whole
+                                    transfer completed)
+ Returns:       pointer to error, or NULL if successful
+ ******************************************************************/
 _kernel_oserror *fsentry_gbpb(FSEntry_GBPB_Parameter * parm)
 {
     _kernel_oserror *err;
@@ -28,39 +40,39 @@ _kernel_oserror *fsentry_gbpb(FSEntry_GBPB_Parameter * parm)
     switch (parm->reason)
     {
         case FSEntry_GBPB_Reason_PutMultipleBytesHere:
-            /*
-               parm->sequential_file_pointer (R4) gives the file
-               offset to write at. Write parm->number (R3) bytes from
-               parm->address (R2) to that offset.
+            /* Write multiple bytes at a given file offset.
+
+               => parm->sequential_file_pointer-> file offset to
+                                write at (R4)
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_GBPB_Reason_PutMultipleBytes:
-            /*
-               Write parm->number (R3) bytes from parm->address (R2)
-               at the file's current sequential pointer, advancing
-               it; parm->sequential_file_pointer (R4) is ignored on
-               entry.
+            /* Write multiple bytes at the file's current sequential
+               pointer, advancing it.
+
+               => parm->sequential_file_pointer (R4) is ignored on
+                                entry for this reason code
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_GBPB_Reason_GetMultipleBytesHere:
-            /*
-               parm->sequential_file_pointer (R4) gives the file
-               offset to read from. Read parm->number (R3) bytes into
-               parm->address (R2) from that offset.
+            /* Read multiple bytes from a given file offset.
+
+               => parm->sequential_file_pointer-> file offset to
+                                read from (R4)
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_GBPB_Reason_GetMultipleBytes:
-            /*
-               Read parm->number (R3) bytes into parm->address (R2)
-               from the file's current sequential pointer, advancing
-               it; parm->sequential_file_pointer (R4) is ignored on
-               entry.
+            /* Read multiple bytes from the file's current sequential
+               pointer, advancing it.
+
+               => parm->sequential_file_pointer (R4) is ignored on
+                                entry for this reason code
              */
             err = err_DoesNothing;
             break;

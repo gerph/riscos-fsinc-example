@@ -1,6 +1,10 @@
-/*
-        Declares the global data structures defined in c.statics
-*/
+/*******************************************************************
+ * File:        statics
+ * Purpose:     Declares the global data structures defined in
+ *              c.statics, for use by c.module.
+ * Author:      YOUR NAME HERE
+ * Date:        07 Aug 2026
+ ******************************************************************/
 
 #ifndef __DUMMYFSSTATIC_H
 #define __DUMMYFSSTATIC_H

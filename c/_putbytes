@@ -1,44 +1,58 @@
-/*
-        Implementation of the FSEntry_PutBytes entry point. See the
-        prologue for fsentry_putbytes in h.fsentries for the
-        parameters and return convention.
-*/
+/*******************************************************************
+ * File:        _putbytes
+ * Purpose:     Implementation of the FSEntry_PutBytes entry point.
+ *              See h.fsentries for where fsentry_putbytes is
+ *              declared, and prminxml/fsinc.xml for the full
+ *              description.
+ * Author:      YOUR NAME HERE
+ * Date:        07 Aug 2026
+ ******************************************************************/
 
 #ifndef __DUMMYFSDUMMYFS_H
 #include "dummyfs.h"
 #endif
 
-/*
-        Write one byte, or a block of bytes, to an open file. See
-        h.fsentries for the parameter block layout, and the notes
-        below on the buffered/unbuffered distinction.
-*/
+/*******************************************************************
+ Function:      fsentry_putbytes
+ Description:   Write one byte, or a block of bytes, to an open
+                file. As with fsentry_getbytes (c._getbytes), there
+                is no reason code; FileSwitch calls this in one of
+                two ways, matching the mode chosen when the file was
+                opened by fsentry_open (c._open).
+
+                Unbuffered (single byte) transfer:
+
+                => parm->byte_to_put-> the byte to write, low 8 bits
+                                (R0)
+                   parm->handle-> the FileSystemHandle from
+                                fsentry_open (R1)
+                <= (nothing; the byte is written at the file's current
+                   sequential pointer, which advances by one,
+                   extending the file if the pointer was at its end)
+
+                Buffered transfer:
+
+                => parm->handle-> the FileSystemHandle from
+                                fsentry_open (R1)
+                   parm->source_start-> buffer to write from (R2)
+                   parm->bytes_to_write-> number of bytes to write
+                                (R3)
+                   parm->file_offset_to_put_data_to-> file offset to
+                                write to (R4)
+                <= (nothing; extend the file if the write goes past
+                   its current extent)
+
+                Either way, fail with a "disc full" style error
+                (matching the pattern used by other filing systems,
+                see doc.FSinC and prminxml/fsinc.xml) if there is not
+                enough free space to extend the file as required.
+ Parameters:    parm-> the parameters (see h.fsentries for details)
+ Returns:       pointer to error, or NULL if successful
+ ******************************************************************/
 _kernel_oserror *fsentry_putbytes(FSEntry_PutBytes_Parameter * parm)
 {
     _kernel_oserror *err;
 
-    /*
-       As with fsentry_getbytes, this entry point is called in two
-       different ways, distinguished by which fields are meaningful;
-       there is no reason code to switch on.
-
-       Unbuffered (single byte) transfer: parm->byte_to_put (R0, low
-       8 bits) and parm->handle (R1) are meaningful. Write that one
-       byte at the file's current sequential pointer, advancing it,
-       and extending the file if the pointer was at its end.
-
-       Buffered transfer: parm->handle (R1), parm->source_start (R2),
-       parm->bytes_to_write (R3) and parm->file_offset_to_put_data_to
-       (R4) are all meaningful. Copy bytes_to_write bytes from the
-       buffer at source_start into the file starting at
-       file_offset_to_put_data_to, extending the file if the write
-       goes past its current extent.
-
-       Either way, fail with a "disc full" style error (matching the
-       pattern used by other filing systems, see doc.FSinC and
-       prminxml/fsinc.xml) if there is not enough free space to
-       extend the file as required.
-     */
     err = err_DoesNothing;
 
     return err;

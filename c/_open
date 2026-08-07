@@ -1,19 +1,34 @@
-/*
-        Implementation of the FSEntry_Open entry point. See the
-        prologue for fsentry_open in h.fsentries for the parameters
-        and return convention, and prminxml/fsinc.xml for the full
-        description of each reason code.
-*/
+/*******************************************************************
+ * File:        _open
+ * Purpose:     Implementation of the FSEntry_Open entry point. See
+ *              h.fsentries for where fsentry_open is declared, and
+ *              prminxml/fsinc.xml for the full description of each
+ *              reason code.
+ * Author:      YOUR NAME HERE
+ * Date:        07 Aug 2026
+ ******************************************************************/
 
 #ifndef __DUMMYFSDUMMYFS_H
 #include "dummyfs.h"
 #endif
 
-/*
-        Open a file, directory, or other object for access, selected
-        by parm->open_definition.reason. See h.fsentries for the
-        parameter block layout.
-*/
+/*******************************************************************
+ Function:      fsentry_open
+ Description:   Open a file, directory, or other object for access,
+                selected by parm->open_definition.reason.
+ Parameters:    parm-> the parameters (see h.fsentries for details)
+                    parm->open_definition.filename (R1) gives the
+                                    object's pathname for every reason
+                                    code
+                    parm->open_definition.handle (R3) is the
+                                    FileSwitch handle that will
+                                    identify this open file elsewhere
+                                    in the system
+                    parm->open_definition.special_field (R6) points
+                                    at any filing-system-specific text
+                                    following the pathname, or is NULL
+ Returns:       pointer to error, or NULL if successful
+ ******************************************************************/
 _kernel_oserror *fsentry_open(FSEntry_Open_Parameter * parm)
 {
     _kernel_oserror *err;
@@ -21,42 +36,51 @@ _kernel_oserror *fsentry_open(FSEntry_Open_Parameter * parm)
     switch (parm->open_definition.reason)
     {
         case FSEntry_Open_Reason_Update:
-            /*
-               Open an existing file for reading and writing (R0 = 2
-               on entry). Read parm->open_definition.filename (R1)
-               and fail if the object does not exist or is a
-               directory. On success fill in parm->open_result:
-                 R0 = information word (write/read/directory/
-                      unbuffered-GBPB/interactive flags)
-                 R1 = a non-zero FileSystemHandle you choose to
-                      identify this open file on later calls
-                 R2 = buffer size for buffered transfer (a power of
-                      two, 64-1024), or 0 to use unbuffered
-                      GetBytes/PutBytes
-                 R3 = current file extent (only if R2 non-zero)
-                 R4 = space allocated to the file (only if R2 non-zero)
+            /* Open an existing file for reading and writing.
+
+               => (only the common fields above)
+               <= parm->open_result.information_word (R0) = write/
+                                read/directory/unbuffered-GBPB/
+                                interactive flags, see h.veneers
+                  parm->open_result.handle (R1) = a non-zero
+                                FileSystemHandle you choose to
+                                identify this open file on later calls
+                  parm->open_result.buffer_size (R2) = buffer size for
+                                buffered transfer (a power of two,
+                                64-1024), or 0 to use unbuffered
+                                fsentry_getbytes/fsentry_putbytes
+                                (c._getbytes, c._putbytes)
+                  parm->open_result.file_extent (R3) = current file
+                                extent (only if buffer_size non-zero)
+                  parm->open_result.allocated_space (R4) = space
+                                allocated to the file (only if
+                                buffer_size non-zero)
+
+               Fail if the object does not exist or is a directory.
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Open_Reason_OpenRead:
-            /*
-               Open an existing file for reading only (R0 = 0 on
-               entry). Read parm->open_definition.filename (R1) and
-               fail if the object does not exist. Fill in
-               parm->open_result exactly as for Update above, but
-               with the write-permitted bit clear in R0.
+            /* Open an existing file for reading only.
+
+               => (only the common fields above)
+               <= (as FSEntry_Open_Reason_Update above, but with the
+                  write-permitted bit clear in
+                  parm->open_result.information_word)
+
+               Fail if the object does not exist.
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Open_Reason_CreateUpdate:
-            /*
-               Create a new, empty file if parm->open_definition.
-               filename (R1) does not already exist, or open the
-               existing file unchanged if it does; either way, open
-               it for reading and writing. Fill in parm->open_result
-               exactly as for Update above.
+            /* Create a new, empty file if it does not already exist,
+               or open the existing file unchanged if it does; either
+               way, open it for reading and writing.
+
+               => (only the common fields above)
+               <= (as FSEntry_Open_Reason_Update above)
              */
             err = err_DoesNothing;
             break;

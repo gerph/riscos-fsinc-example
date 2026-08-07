@@ -1,44 +1,60 @@
-/*
-        Implementation of the FSEntry_GetBytes entry point. See the
-        prologue for fsentry_getbytes in h.fsentries for the
-        parameters and return convention.
-*/
+/*******************************************************************
+ * File:        _getbytes
+ * Purpose:     Implementation of the FSEntry_GetBytes entry point.
+ *              See h.fsentries for where fsentry_getbytes is
+ *              declared, and prminxml/fsinc.xml for the full
+ *              description.
+ * Author:      YOUR NAME HERE
+ * Date:        07 Aug 2026
+ ******************************************************************/
 
 #ifndef __DUMMYFSDUMMYFS_H
 #include "dummyfs.h"
 #endif
 
-/*
-        Read one byte, or a block of bytes, from an open file. See
-        h.fsentries for the parameter block layout, and the notes
-        below on the buffered/unbuffered distinction.
-*/
+/*******************************************************************
+ Function:      fsentry_getbytes
+ Description:   Read one byte, or a block of bytes, from an open
+                file. There is no reason code for this entry point;
+                FileSwitch instead calls it in one of two ways,
+                distinguished by which fields it has filled in, to
+                match the buffered/unbuffered mode chosen when the
+                file was opened by fsentry_open (c._open).
+
+                Unbuffered (single byte) transfer:
+
+                => parm->getbytes_definition.handle-> the
+                                FileSystemHandle from fsentry_open
+                                (R1); no other fields are meaningful
+                <= parm->getbytes_result.byte_got (R0, low 8 bits) =
+                                the byte read
+                   parm->getbytes_result.got_the_byte (R1) = Yes, or
+                                No if the sequential pointer was
+                                already at end of file
+
+                The veneer in s.interface derives the returned C flag
+                from whether R1 is zero, so got_the_byte is how end
+                of file is reported here, not the returned
+                _kernel_oserror.
+
+                Buffered transfer:
+
+                => parm->getbytes_definition.handle-> the
+                                FileSystemHandle from fsentry_open (R1)
+                   parm->getbytes_definition.destination_start->
+                                buffer to fill (R2)
+                   parm->getbytes_definition.bytes_to_read->
+                                number of bytes to read (R3)
+                   parm->getbytes_definition.file_offset_to_get_data_from->
+                                file offset to read from (R4)
+                <= (nothing; the buffer at destination_start is filled)
+ Parameters:    parm-> the parameters (see h.fsentries for details)
+ Returns:       pointer to error, or NULL if successful
+ ******************************************************************/
 _kernel_oserror *fsentry_getbytes(FSEntry_GetBytes_Parameter * parm)
 {
     _kernel_oserror *err;
 
-    /*
-       This single entry point is called in two different ways,
-       distinguished only by which fields FileSwitch has filled in;
-       there is no reason code to switch on.
-
-       Unbuffered (single byte) transfer: only
-       parm->getbytes_definition.handle (R1) is meaningful on entry.
-       Fetch the next sequential byte for that file and set:
-         parm->getbytes_result.byte_got (R0, low 8 bits) = the byte
-         parm->getbytes_result.got_the_byte (R1) = Yes, or No if the
-             sequential pointer is already at end of file
-       The veneer derives the returned C flag from whether R1 is zero,
-       so got_the_byte is how end-of-file is reported here, not the
-       returned _kernel_oserror.
-
-       Buffered transfer: parm->getbytes_definition.handle (R1),
-       .destination_start (R2), .bytes_to_read (R3) and
-       .file_offset_to_get_data_from (R4) are all meaningful. Copy
-       bytes_to_read bytes from the file, starting at
-       file_offset_to_get_data_from, into the buffer at
-       destination_start.
-     */
     err = err_DoesNothing;
 
     return err;

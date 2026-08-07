@@ -1,21 +1,31 @@
-/*
-        Implementation of the FSEntry_File entry point. See the
-        prologue for fsentry_file in h.fsentries for the parameters
-        and return convention, and prminxml/fsinc.xml for the full
-        description of each reason code.
-*/
+/*******************************************************************
+ * File:        _file
+ * Purpose:     Implementation of the FSEntry_File entry point. See
+ *              the prologue for fsentry_file in h.fsentries for
+ *              the parameters and return convention, and
+ *              prminxml/fsinc.xml for the full description of each
+ *              reason code.
+ * Author:      YOUR NAME HERE
+ * Date:        07 Aug 2026
+ ******************************************************************/
+
 
 #ifndef __DUMMYFSDUMMYFS_H
 #include "dummyfs.h"
 #endif
 
-/*
-        Whole-object operations identified by pathname, selected by
-        parm->reason. See h.fsentries for the parameter block layout.
-        parm->name (R1) gives the object's pathname for every reason
-        code below; parm->special_field (R6) points at any filing-
-        system-specific text following it, or is NULL.
-*/
+/*******************************************************************
+ Function:      fsentry_file
+ Description:   Whole-object operations identified by pathname,
+                selected by parm->reason.
+ Parameters:    parm-> the parameters (see h.fsentries for details)
+                    parm->name (R1) gives the object's pathname for
+                                    every reason code
+                    parm->special_field (R6) points at any filing-
+                                    system-specific text following
+                                    it, or is NULL.
+ Returns:       pointer to error, or NULL if successful
+ ******************************************************************/
 _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
 {
     _kernel_oserror *err;
@@ -23,124 +33,156 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
     switch (parm->reason)
     {
         case FSEntry_File_Reason_LoadFile:
-            /*
-               parm->extras.location.start (R2) gives the address to
-               load the file at (or a small negative pseudo-address
-               requesting the file's own stamped load address).
-               Read the whole file into memory there, then set:
-                 parm->info (R2-R3) = the load/execute addresses the
-                     file was stamped with
-                 parm->extras.info.length (R4) = the file's length
-                 parm->extras.info.attributes (R5) = the file's
-                     attributes
-                 parm->special_field (R6) = pointer to the object's
-                     printable leafname
+            /* Read a file into memory.
+
+               => parm->name-> the filename (R1)
+                  parm->extras.location.start->
+                                the address to load the file at, or
+                                FSEntry_File_UseStampedAddress (see
+                                h.consts) to load it at the address it
+                                was itself stamped with.
+               <= parm->info (R2-R3) = the load/execute addresses the
+                                file was stamped with
+                  parm->extras.info.length (R4) = the file's length
+                  parm->extras.info.attributes (R5) = the file's
+                                attributes
+                  parm->special_field (R6) = pointer to the object's
+                                printable leafname
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_File_Reason_CreateFile:
-            /*
-               parm->info (R2-R3) gives load/execute addresses to
-               stamp on the new file; the length to preallocate is
-               given in the second word of parm->extras (R5) for this
-               reason code, not parm->extras.info.length (R4), which
-               is unused here. Create a new, empty file of that
-               length. Set parm->special_field (R6) to the object's
-               printable leafname.
+            /* Create a new, empty file of a given length.
+
+               => parm->name-> the filename (R1)
+                  parm->info-> load/execute addresses to stamp on the
+                                new file (R2-R3)
+                  parm->extras-> second word only (R5) gives the
+                                length to preallocate;
+                                parm->extras.info.length (R4) is
+                                unused for this reason code
+               <= parm->special_field (R6) = pointer to the object's
+                                printable leafname
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_File_Reason_SaveFile:
-            /*
-               parm->info (R2-R3) gives load/execute addresses to
-               stamp on the new file; parm->extras.location.start
-               (R4) and .end (R5) bound the memory to save. Create
-               the file from that memory block. Set
-               parm->special_field (R6) to the object's printable
-               leafname.
+            /* Save a block of memory as a new file.
+
+               => parm->name-> the filename (R1)
+                  parm->info-> load/execute addresses to stamp on the
+                                new file (R2-R3)
+                  parm->extras.location.start, .end->
+                                the memory block to save (R4-R5)
+               <= parm->special_field (R6) = pointer to the object's
+                                printable leafname
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_File_Reason_WriteCatalogueInformation:
-            /*
-               Set the object's load address, execute address (both
-               parm->info, R2-R3), length and attributes (both
-               parm->extras.info, R4-R5) all together, to the values
-               given.
+            /* Set a file's load address, execute address, length
+               and attributes together.
+
+               => parm->name-> the filename (R1)
+                  parm->info-> new load/execute addresses (R2-R3)
+                  parm->extras.info.length-> new length (R4)
+                  parm->extras.info.attributes-> new attributes (R5)
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_File_Reason_WriteLoadAddress:
-            /*
-               Set the object's load address to
-               parm->info.load_exec.load_address (R2), leaving its
-               execute address, length and attributes unchanged.
+            /* Set a file's load address, leaving its execute
+               address, length and attributes unchanged.
+
+               => parm->name-> the filename (R1)
+                  parm->info.load_exec.load_address->
+                                new load address (R2)
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_File_Reason_WriteExecutionAddress:
-            /*
-               Set the object's execute address to
-               parm->info.load_exec.execute_address (R3), leaving
-               its load address, length and attributes unchanged.
+            /* Set a file's execute address, leaving its load
+               address, length and attributes unchanged.
+
+               => parm->name-> the filename (R1)
+                  parm->info.load_exec.execute_address->
+                                new execute address (R3)
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_File_Reason_WriteAttributes:
-            /*
-               Set the object's access attributes to
-               parm->extras.info.attributes (R5), leaving its load
+            /* Set a file's access attributes, leaving its load
                address, execute address and length unchanged.
+
+               => parm->name-> the filename (R1)
+                  parm->extras.info.attributes->
+                                new attributes (R5)
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_File_Reason_ReadCatalogueInformationNoLength:
-            /*
-               As ReadCatalogueInformation below, but
-               parm->extras.info.length (R4) need not be filled in;
-               only object type, load/execute addresses and
-               attributes are required.
+            /* As FSEntry_File_Reason_ReadCatalogueInformation below,
+               but parm->extras.info.length (R4) need not be filled
+               in; only object type, load/execute addresses and
+               attributes are required. Provided separately because
+               computing a length can be expensive for some filing
+               systems, and many callers do not need it.
+
+               => parm->name-> the filename (R1)
+               <= (as FSEntry_File_Reason_ReadCatalogueInformation,
+                  excluding parm->extras.info.length)
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_File_Reason_ReadCatalogueInformation:
-            /*
-               Set parm->reason/return value in R0 to the object
-               type (0 not found, 1 file, 2 directory, 3 both), and
-               fill in parm->info (R2-R3), parm->extras.info.length
-               (R4) and parm->extras.info.attributes (R5) from the
-               object's catalogue entry.
+            /* Read a file's full catalogue entry, including its
+               length.
+
+               => parm->name-> the filename (R1)
+               <= object type (R0) = 0 not found, 1 file, 2 directory,
+                                3 both a file and a directory
+                  parm->info (R2-R3) = load/execute addresses
+                  parm->extras.info.length (R4) = length
+                  parm->extras.info.attributes (R5) = attributes
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_File_Reason_DeleteObject:
-            /*
-               Delete the object if it is a file, or an empty
-               directory; fail if it is a non-empty directory. Set
-               the object type in R0 (0 if it did not exist), and
-               fill in parm->info (R2-R3), parm->extras.info.length
-               (R4) and parm->extras.info.attributes (R5) with the
-               values the object had immediately before deletion.
+            /* Delete a file or an empty directory; fail with an
+               appropriate error rather than deleting the contents
+               of a non-empty directory.
+
+               => parm->name-> the filename (R1)
+               <= object type (R0) = the type of the object deleted
+                                (0 if it did not exist)
+                  parm->info (R2-R3) = the load/execute addresses the
+                                object had immediately before deletion
+                  parm->extras.info.length (R4) = the length it had
+                                immediately before deletion
+                  parm->extras.info.attributes (R5) = the attributes
+                                it had immediately before deletion
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_File_Reason_CreateDirectory:
-            /*
-               parm->extras.info.length (R4) is a hint for the number
-               of entries the directory should be sized for; ignore
-               it if your filing system has no fixed-size
-               directories. Create a new, empty directory at
-               parm->name (R1).
+            /* Create a new, empty directory.
+
+               => parm->name-> the directory's pathname (R1)
+                  parm->extras.info.length->
+                                a hint for the number of entries the
+                                directory should be sized for (R4);
+                                ignore this if your filing system has
+                                no fixed-size directories
              */
             err = err_DoesNothing;
             break;

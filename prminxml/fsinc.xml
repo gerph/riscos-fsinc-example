@@ -54,9 +54,16 @@ and repackages the C function's return value back into the registers and
 flags FileSwitch expects. You should not normally need to change this
 file.</p></item>
 <item><p>A set of C source files, one per FileSwitch entry point, each
-containing a single function such as <userinput>fsentry_open</userinput>
-or <userinput>fsentry_getbytes</userinput>. These are where your filing
-system's behaviour lives, and are the files you fill in.</p></item>
+containing a single function: <userinput>fsentry_open</userinput> in
+<filename>c._open</filename>, <userinput>fsentry_getbytes</userinput> in
+<filename>c._getbytes</filename>, <userinput>fsentry_putbytes</userinput>
+in <filename>c._putbytes</filename>, <userinput>fsentry_args</userinput>
+in <filename>c._args</filename>, <userinput>fsentry_close</userinput> in
+<filename>c._close</filename>, <userinput>fsentry_file</userinput> in
+<filename>c._file</filename>, <userinput>fsentry_func</userinput> in
+<filename>c._func</filename>, and <userinput>fsentry_gbpb</userinput> in
+<filename>c._gbpb</filename>. These are where your filing system's
+behaviour lives, and are the files you fill in.</p></item>
 <item><p>A CMHG/CMunge module header that declares the module's name, SWI
 chunk, service calls, star commands and error blocks, and a small amount
 of C module-lifecycle code (initialisation, finalisation, service call
@@ -767,7 +774,10 @@ expensive for some filing systems, and many callers do not need it.</p></use>
 <entry-definition name="FSEntry_File" reason="255" reasonname="LoadFile"
                   description="Load a whole file into memory">
 <entry>
- <register-use number="2">address to load the file at, or a small negative pseudo-address requesting that the file's own stamped load address be used instead</register-use>
+ <register-use number="2">address to load the file at, or
+  <userinput>FSEntry_File_UseStampedAddress</userinput> (0, defined in
+  <filename>h.consts</filename>) requesting that the file's own stamped
+  load address be used instead</register-use>
 </entry>
 <exit>
  <register-use number="2-3">the load and execute addresses the file was stamped with</register-use>
@@ -1156,10 +1166,10 @@ system's registered name.
 <subsection title="Implementing unbuffered reads">
 <p>
 The following sketch shows how
-<reference type="entry" name="FSEntry_GetBytes"/> might be implemented
-for a filing system that keeps each open file as a single contiguous
-block in memory, addressed through a private open-file table indexed by
-the FileSystemHandle:
+<reference type="entry" name="FSEntry_GetBytes"/> might be implemented, in
+<filename>c._getbytes</filename>, for a filing system that keeps each
+open file as a single contiguous block in memory, addressed through a
+private open-file table indexed by the FileSystemHandle:
 </p>
 <p>
 <extended-example type="c">

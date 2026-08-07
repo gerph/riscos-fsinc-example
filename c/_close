@@ -1,31 +1,35 @@
-/*
-        Implementation of the FSEntry_Close entry point. See the
-        prologue for fsentry_close in h.fsentries for the parameters
-        and return convention.
-*/
+/*******************************************************************
+ * File:        _close
+ * Purpose:     Implementation of the FSEntry_Close entry point. See
+ *              h.fsentries for where fsentry_close is declared, and
+ *              prminxml/fsinc.xml for the full description.
+ * Author:      YOUR NAME HERE
+ * Date:        07 Aug 2026
+ ******************************************************************/
 
 #ifndef __DUMMYFSDUMMYFS_H
 #include "dummyfs.h"
 #endif
 
-/*
-        Close a previously-opened file. See h.fsentries for the
-        parameter block layout.
-*/
+/*******************************************************************
+ Function:      fsentry_close
+ Description:   Close a previously-opened file: flush any buffered
+                data, release any resources held for the handle, and
+                optionally re-stamp the file's load and execute
+                addresses. There is no reason code for this entry
+                point; every call performs the same operation.
+
+                => parm->handle-> the FileSystemHandle returned from
+                                fsentry_open (c._open) (R1)
+                   parm->info-> new load and execute addresses to
+                                stamp on the file, or 0/0 to leave
+                                them unchanged (R2-R3)
+                <= (nothing; the handle must not be used again after
+                   this call returns successfully)
+ Parameters:    parm-> the parameters (see h.fsentries for details)
+ Returns:       pointer to error, or NULL if successful
+ ******************************************************************/
 _kernel_oserror *fsentry_close(FSEntry_Close_Parameter * parm)
 {
-    /*
-       parm->handle (R1) identifies the file to close. Flush any
-       buffered data for this handle, and release any resources
-       (memory, table entries, handles onto the underlying medium)
-       you allocated for it in fsentry_open.
-
-       parm->info (R2-R3) gives new load and execute addresses to
-       stamp on the file as it closes; if both are zero, leave the
-       file's existing load and execute addresses unchanged.
-
-       The handle must not be used again after this call returns
-       successfully.
-     */
     return err_DoesNothing;
 }

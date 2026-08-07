@@ -1,6 +1,15 @@
-/*
-        All the RISC OS DUMMYFS includes necessary
-*/
+/*******************************************************************
+ * File:        dummyfs
+ * Purpose:     Master include header for DummyFS: pulls in every
+ *              other header the filing system's C sources need
+ *              (h.consts, h.statics, h.veneers, h.interface,
+ *              h.fsentries, and the CMHG/CMunge-generated
+ *              modhead.h). Every c.* source includes this rather
+ *              than the individual headers directly.
+ * Author:      YOUR NAME HERE
+ * Date:        07 Aug 2026
+ ******************************************************************/
+
 #ifndef __DUMMYFSDUMMYFS_H
 #define __DUMMYFSDUMMYFS_H
 

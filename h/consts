@@ -1,6 +1,15 @@
-/*
-        DummyFS constants
-*/
+/*******************************************************************
+ * File:        consts
+ * Purpose:     DummyFS's own constants: the values that must be
+ *              changed to turn this template into a real filing
+ *              system (FilingSystemName, Information_Word), and the
+ *              sentinel/fixed values used when talking to FileSwitch
+ *              and OS_FSControl from c.module and the fsentry_*
+ *              functions (c._open, c._getbytes, c._putbytes,
+ *              c._args, c._close, c._file, c._func, c._gbpb).
+ * Author:      YOUR NAME HERE
+ * Date:        07 Aug 2026
+ ******************************************************************/
 
 #ifndef __DUMMYFSCONSTS_H
 #define __DUMMYFSCONSTS_H
@@ -14,5 +23,11 @@
 #define Information_Word                0x04000021
 #define Service_FSRedeclare             0x40
 #define ASpace                          ' '
+
+/* FSEntry_File_Reason_LoadFile (see c._file): the value FileSwitch
+   uses in parm->extras.location.start (R2) to mean "load the file at
+   its own stamped load address" rather than at a caller-given
+   address. */
+#define FSEntry_File_UseStampedAddress  0
 
 #endif

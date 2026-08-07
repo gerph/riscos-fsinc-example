@@ -1,20 +1,27 @@
-/*
-        Implementation of the FSEntry_Args entry point. See the
-        prologue for fsentry_args in h.fsentries for the parameters
-        and return convention, and prminxml/fsinc.xml for the full
-        description of each reason code.
-*/
+/*******************************************************************
+ * File:        _args
+ * Purpose:     Implementation of the FSEntry_Args entry point. See
+ *              h.fsentries for where fsentry_args is declared, and
+ *              prminxml/fsinc.xml for the full description of each
+ *              reason code.
+ * Author:      YOUR NAME HERE
+ * Date:        07 Aug 2026
+ ******************************************************************/
 
 #ifndef __DUMMYFSDUMMYFS_h
 #include "dummyfs.h"
 #endif
 
-/*
-        Miscellaneous operations on an open file, selected by
-        parm->reason. See h.fsentries for the parameter block layout.
-        parm->handle (R1) identifies the open file for every reason
-        code below.
-*/
+/*******************************************************************
+ Function:      fsentry_args
+ Description:   Miscellaneous operations on an already-open file,
+                selected by parm->reason.
+ Parameters:    parm-> the parameters (see h.fsentries for details)
+                    parm->handle (R1) identifies the open file, from
+                                    fsentry_open (c._open), for every
+                                    reason code
+ Returns:       pointer to error, or NULL if successful
+ ******************************************************************/
 _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
 {
     _kernel_oserror *err;
@@ -22,94 +29,111 @@ _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
     switch (parm->reason)
     {
         case FSEntry_Args_Reason_ReadSequentialFilePointer:
-            /*
-               Set parm->arg.sequential_pointer (R2) to the byte
-               offset the next unbuffered/sequential transfer would
-               read from or write to.
+            /* Read the current sequential file pointer.
+
+               => (only the common fields above)
+               <= parm->arg.sequential_pointer (R2) = the byte offset
+                                the next unbuffered/sequential
+                                transfer would read from or write to
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_WriteSequentialFilePointer:
-            /*
-               Read parm->arg.sequential_pointer (R2) and move this
-               file's sequential pointer to that byte offset. Moving
-               it past the current extent is valid and must not
-               itself extend the file.
+            /* Set the current sequential file pointer. Moving it
+               past the current extent is valid and must not itself
+               extend the file.
+
+               => parm->arg.sequential_pointer-> new file pointer,
+                                as a byte offset (R2)
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_ReadFileExtent:
-            /*
-               Set parm->arg.extent (R2) to the file's current extent
-               in bytes.
+            /* Read the current extent (length) of the file.
+
+               => (only the common fields above)
+               <= parm->arg.extent (R2) = the file's current extent,
+                                in bytes
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_WriteFileExtent:
-            /*
-               Read parm->arg.extent (R2) and set the file's extent
-               to that many bytes: truncate if smaller than the
-               current extent, or extend (ideally zero-filling the
-               new space) if larger.
+            /* Set the extent (length) of the file: truncate if
+               smaller than the current extent, or extend (ideally
+               zero-filling the new space) if larger.
+
+               => parm->arg.extent-> new extent, in bytes (R2)
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_ReadSizeAllocatedToFile:
-            /*
-               Set parm->arg.allocation_size (R2) to the space
-               currently allocated to the file, which may exceed its
-               extent.
+            /* Read the amount of storage allocated to the file,
+               which may exceed its extent.
+
+               => (only the common fields above)
+               <= parm->arg.allocation_size (R2) = space allocated,
+                                in bytes
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_EOFCheck:
-            /*
-               Set parm->arg.EOF_Has_Been_Reached (R2) to Yes if the
-               sequential file pointer is at or beyond the file's
-               extent, or No otherwise.
+            /* Test whether the sequential file pointer is at end of
+               file.
+
+               => (only the common fields above)
+               <= parm->arg.EOF_Has_Been_Reached (R2) = Yes if the
+                                sequential pointer is at or beyond the
+                                file's extent, No otherwise
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_FlushFileBuffer:
-            /*
-               No arguments. Write out any data buffered in memory
-               for this handle so the underlying medium is up to
-               date; do nothing if there is nothing buffered.
+            /* Flush any buffered output for this file to permanent
+               storage; do nothing if there is nothing buffered.
+
+               => (only the common fields above)
+               <= (nothing)
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_EnsureFileSize:
-            /*
-               Read parm->arg.allocation_size (R2) and guarantee that
-               at least this much storage could be allocated to the
-               file without failing, without actually changing the
-               file's extent (a pre-flight check before a large
-               write).
+            /* Guarantee that at least the given amount of storage
+               could be allocated to the file without failing,
+               without actually changing the file's extent; a
+               pre-flight check before a large write.
+
+               => parm->arg.allocation_size-> storage required, in
+                                bytes (R2)
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_WriteZerosToFile:
-            /*
-               Read parm->arg.write_zeros.start (R2) and
-               parm->arg.write_zeros.number (R3), and write that many
-               zero bytes into the file starting at that offset,
-               extending the file if required.
+            /* Write zero bytes into part of the file, extending it
+               if required.
+
+               => parm->arg.write_zeros.start-> byte offset to start
+                                writing zeros at (R2)
+                  parm->arg.write_zeros.number-> number of zero bytes
+                                to write (R3)
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_ReadFileDateStamp:
-            /*
-               Set parm->arg.info (R2-R3, an Information_Fields
-               date_type pair) to the file's datestamp.
+            /* Read the file's datestamp.
+
+               => (only the common fields above)
+               <= parm->arg.info (R2-R3) = the file's datestamp, as
+                                an Information_Fields date_type pair
+                                (see h.veneers)
              */
             err = err_DoesNothing;
             break;

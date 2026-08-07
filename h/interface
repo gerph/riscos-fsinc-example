@@ -1,15 +1,21 @@
-/*
-        Declarations for the assembler veneers in s.interface which
-        FileSwitch calls directly for each entry point. Each veneer
-        packs the incoming registers into the matching parameter
-        structure from h.veneers and calls the corresponding
-        fsentry_* function declared in h.fsentries; see
-        prminxml/fsinc.xml for the full calling convention. These
-        veneers take no C-callable arguments of their own (FileSwitch
-        calls them with the raw register set, not via a C call), so
-        no per-function prologue is given here; do not call them
-        directly from C.
-*/
+/*******************************************************************
+ * File:        interface
+ * Purpose:     Declarations for the assembler veneers implemented in
+ *              s.interface, which FileSwitch calls directly for each
+ *              entry point. Each veneer packs the incoming registers
+ *              into the matching parameter structure from h.veneers
+ *              and calls the corresponding fsentry_* function
+ *              declared in h.fsentries (implemented in c._open,
+ *              c._getbytes, c._putbytes, c._args, c._close, c._file,
+ *              c._func and c._gbpb); see prminxml/fsinc.xml for the
+ *              full calling convention. These veneers take no
+ *              C-callable arguments of their own (FileSwitch calls
+ *              them with the raw register set, not via a C call), so
+ *              no per-function prologue is given here; do not call
+ *              them directly from C.
+ * Author:      YOUR NAME HERE
+ * Date:        07 Aug 2026
+ ******************************************************************/
 
 #ifndef __DUMMYFSINTERFACE_H
 #define __DUMMYFSINTERFACE_H
