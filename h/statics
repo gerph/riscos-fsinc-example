@@ -1,5 +1,5 @@
 /*
-        Here is where all the RISC OS NFS global data structures are defined
+        Declares the global data structures defined in c.statics
 */
 
 #ifndef __DUMMYFSSTATIC_H

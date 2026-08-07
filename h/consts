@@ -1,5 +1,5 @@
 /*
-        RISC OS NFS constants
+        DummyFS constants
 */
 
 #ifndef __DUMMYFSCONSTS_H

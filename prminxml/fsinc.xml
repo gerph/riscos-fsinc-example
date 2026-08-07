@@ -9,10 +9,9 @@
 <p>
 FileSwitch is the part of the RISC OS kernel that presents a single,
 consistent filing system interface to applications, and dispatches the
-individual operations that make up that interface - no such entity
-exists, so read this as: dispatches the individual operations that make
-up that interface - to whichever filing system module currently owns
-the object being accessed. A filing system module is a normal relocatable
+individual operations that make up that interface to whichever filing
+system module currently owns the object being accessed. A filing system
+module is a normal relocatable
 module that registers a small table of entry points with FileSwitch;
 FileSwitch then calls those entry points directly, in SVC mode, with the
 parameters for each operation packed into registers.

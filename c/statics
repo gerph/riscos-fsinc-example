@@ -1,5 +1,5 @@
 /*
-        Here is where all the RISC OS NFS global data structures are defined
+        Here is where all of DummyFS's global data structures are defined
 */
 
 #ifndef __DUMMYFSDUMMYFS_H
