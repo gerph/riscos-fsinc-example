@@ -10,9 +10,22 @@ Revision History:
 #include "dummyfs.h"
 #endif
 
-/*
-        This is the SWI handler
-*/
+/*******************************************************************
+ Function:      dummyfs_swi
+ Description:   This is the SWI handler. Called by the module veneers
+                 whenever one of DummyFS's SWIs is issued. There are
+                 no module-specific SWIs declared in cmhg.modhead, so
+                 this handler currently only exists to satisfy the
+                 CMHG declaration; add a case per SWI offset within
+                 the chunk as you declare SWIs of your own.
+ Parameters:    swi_number = the SWI number within the module's chunk
+                    (0 for the first SWI declared in cmhg.modhead)
+                 r = pointer to the caller's registers, both on entry
+                    and for the values to be returned
+                 private_word = the module's private word, as passed
+                    to dummyfs_initialise
+ Returns:       NULL on success, otherwise a pointer to an error block
+ ******************************************************************/
 _kernel_oserror *dummyfs_swi(int swi_number, _kernel_swi_regs * r, void *private_word)
 {
     _kernel_oserror *err = NULL;
@@ -30,9 +43,18 @@ _kernel_oserror *dummyfs_swi(int swi_number, _kernel_swi_regs * r, void *private
     return err;
 }
 
-/*
-        This is the finalisation code for DummyFS
-*/
+/*******************************************************************
+ Function:      dummyfs_finalise
+ Description:   This is the finalisation code for DummyFS. Registered
+                 with atexit() by dummyfs_initialise, and called by
+                 the C library as the module dies, after the module's
+                 SWI/service/command veneers have already been
+                 disconnected. Removes the filing system from
+                 FileSwitch, and should also free any memory or close
+                 any connections the filing system is still holding.
+ Parameters:    none
+ Returns:       nothing
+ ******************************************************************/
 static void dummyfs_finalise(void)
 {
     _kernel_swi_regs r;
@@ -49,9 +71,21 @@ static void dummyfs_finalise(void)
     _kernel_swi(XOS_Bit | OS_FSControl, &r, &r);
 }
 
-/*
-        Declare DummyFS to FileSwitch
-*/
+/*******************************************************************
+ Function:      declare_dummyfs
+ Description:   Declare DummyFS to FileSwitch, by building the 11-word
+                 information block described in prminxml/fsinc.xml and
+                 calling OS_FSControl 12 (FSControl_AddFilingSystem).
+                 Called both from dummyfs_initialise, and again from
+                 dummyfs_service whenever Service_FSRedeclare is
+                 issued.
+ Parameters:    private_word = the module's private word, passed
+                    through to OS_FSControl so FileSwitch can hand it
+                    back on every subsequent fsentry_* call
+ Returns:       NULL on success, otherwise a pointer to the error
+                    block returned by OS_FSControl (for example, if
+                    the chosen filing system number is already in use)
+ ******************************************************************/
 static _kernel_oserror *declare_dummyfs(void *private_word)
 {
     _kernel_swi_regs r;
@@ -77,9 +111,23 @@ static _kernel_oserror *declare_dummyfs(void *private_word)
     return _kernel_swi(XOS_Bit | OS_FSControl, &r, &r);
 }
 
-/*
-        This is the initialisation code for DummyFS
-*/
+/*******************************************************************
+ Function:      dummyfs_initialise
+ Description:   This is the initialisation code for DummyFS. Called
+                 once, when the module is first loaded (or
+                 reinitialised). Performs any of the filing system's
+                 own start-up work, then declares the filing system
+                 to FileSwitch and arranges for dummyfs_finalise to
+                 run when the module dies.
+ Parameters:    cmd_tail = the command line the module was started
+                    with, unused by DummyFS
+                 podule_base = podule hardware base address, unused
+                    by DummyFS (not a podule-resident filing system)
+                 private_word = pointer to the module's private word
+ Returns:       NULL on success; a non-NULL return aborts module
+                    initialisation and skips the FileSwitch
+                    declaration (and thus dummyfs_finalise)
+ ******************************************************************/
 _kernel_oserror *dummyfs_initialise(const char *cmd_tail, int podule_base,
                                     void *private_word)
 {
@@ -106,9 +154,22 @@ _kernel_oserror *dummyfs_initialise(const char *cmd_tail, int podule_base,
     return err;
 }
 
-/*
-        DummyFS service call handler
-*/
+/*******************************************************************
+ Function:      dummyfs_service
+ Description:   DummyFS service call handler. Called for every
+                 service call listed against service-call-handler in
+                 cmhg.modhead; currently only Service_FSRedeclare.
+                 Add a case per additional service call as you
+                 declare more of them.
+ Parameters:    service_number = the service call number
+                 r = pointer to the caller's registers; may be
+                    examined or altered depending on the service call
+                 private_word = the module's private word, as passed
+                    to dummyfs_initialise
+ Returns:       nothing; claim a service call, where the service
+                    call's own convention requires it, by altering *r
+                    rather than through a return value
+ ******************************************************************/
 void dummyfs_service(int service_number, _kernel_swi_regs * r, void *private_word)
 {
     r = r;                      /* keep the compiler quiet */
@@ -125,9 +186,25 @@ void dummyfs_service(int service_number, _kernel_swi_regs * r, void *private_wor
     }
 }
 
-/*
-        DummyFS command processor
-*/
+/*******************************************************************
+ Function:      dummyfs_command
+ Description:   DummyFS command processor. Called whenever one of the
+                 star commands declared in the command-keyword-table
+                 of cmhg.modhead is issued; currently only *DummyFS.
+                 Add a case per additional command as you declare
+                 more of them.
+ Parameters:    arg_string = pointer to the command's argument text,
+                    control-terminated, copied into
+                    my_command_parameter_buffer and nul-terminated
+                    before the switch below runs
+                 argc = the number of arguments found in arg_string,
+                    unused by DummyFS
+                 cmd_no = the index, within the command-keyword-table,
+                    of the command being processed (0 for *DummyFS)
+                 private_word = the module's private word, as passed
+                    to dummyfs_initialise
+ Returns:       NULL on success, otherwise a pointer to an error block
+ ******************************************************************/
 _kernel_oserror *dummyfs_command(const char *arg_string, int argc,
                                  int cmd_no, void *private_word)
 {

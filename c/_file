@@ -1,8 +1,18 @@
+/*
+        Implementation of the FSEntry_File entry point. See the
+        prologue for fsentry_file in h.fsentries for the parameters
+        and return convention, and prminxml/fsinc.xml for the full
+        description of each reason code.
+*/
 
 #ifndef __DUMMYFSDUMMYFS_H
 #include "dummyfs.h"
 #endif
 
+/*
+        Whole-object operations identified by pathname, selected by
+        parm->reason. See h.fsentries for the parameter block layout.
+*/
 _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
 {
     _kernel_oserror *err;

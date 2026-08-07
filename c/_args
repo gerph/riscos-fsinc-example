@@ -1,8 +1,18 @@
+/*
+        Implementation of the FSEntry_Args entry point. See the
+        prologue for fsentry_args in h.fsentries for the parameters
+        and return convention, and prminxml/fsinc.xml for the full
+        description of each reason code.
+*/
 
 #ifndef __DUMMYFSDUMMYFS_h
 #include "dummyfs.h"
 #endif
 
+/*
+        Miscellaneous operations on an open file, selected by
+        parm->reason. See h.fsentries for the parameter block layout.
+*/
 _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
 {
     _kernel_oserror *err;

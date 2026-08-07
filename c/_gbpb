@@ -1,8 +1,18 @@
+/*
+        Implementation of the FSEntry_GBPB entry point. See the
+        prologue for fsentry_gbpb in h.fsentries for the parameters
+        and return convention, and prminxml/fsinc.xml for the full
+        description of each reason code.
+*/
 
 #ifndef __DUMMYFSDUMMYFS_H
 #include "dummyfs.h"
 #endif
 
+/*
+        Multiple-byte transfer to/from an open file, selected by
+        parm->reason. See h.fsentries for the parameter block layout.
+*/
 _kernel_oserror *fsentry_gbpb(FSEntry_GBPB_Parameter * parm)
 {
     _kernel_oserror *err;

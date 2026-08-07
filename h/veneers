@@ -1,3 +1,15 @@
+/*
+        Defines the types and parameter structures used to interface
+        C to FileSwitch's fsentry_* entry points.
+
+        Each parameter structure's fields occupy the same word
+        position as the register FileSwitch/the assembler veneer in
+        s.interface places it in, so the union/struct layout below
+        can be read directly in place of decoding raw registers. See
+        prminxml/fsinc.xml for the full register-to-field mapping for
+        each entry point.
+*/
+
 #ifndef __veneers_h
 #define __veneers_h
 

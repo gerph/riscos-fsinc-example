@@ -1,8 +1,19 @@
+/*
+        Implementation of the FSEntry_Open entry point. See the
+        prologue for fsentry_open in h.fsentries for the parameters
+        and return convention, and prminxml/fsinc.xml for the full
+        description of each reason code.
+*/
 
 #ifndef __DUMMYFSDUMMYFS_H
 #include "dummyfs.h"
 #endif
 
+/*
+        Open a file, directory, or other object for access, selected
+        by parm->open_definition.reason. See h.fsentries for the
+        parameter block layout.
+*/
 _kernel_oserror *fsentry_open(FSEntry_Open_Parameter * parm)
 {
     _kernel_oserror *err;

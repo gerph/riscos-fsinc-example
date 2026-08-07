@@ -1,3 +1,16 @@
+/*
+        Declarations for the assembler veneers in s.interface which
+        FileSwitch calls directly for each entry point. Each veneer
+        packs the incoming registers into the matching parameter
+        structure from h.veneers and calls the corresponding
+        fsentry_* function declared in h.fsentries; see
+        prminxml/fsinc.xml for the full calling convention. These
+        veneers take no C-callable arguments of their own (FileSwitch
+        calls them with the raw register set, not via a C call), so
+        no per-function prologue is given here; do not call them
+        directly from C.
+*/
+
 #ifndef __DUMMYFSINTERFACE_H
 #define __DUMMYFSINTERFACE_H
 extern void veneer_fsentry_open(void);

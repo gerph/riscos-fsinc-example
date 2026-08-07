@@ -1,8 +1,17 @@
+/*
+        Implementation of the FSEntry_Close entry point. See the
+        prologue for fsentry_close in h.fsentries for the parameters
+        and return convention.
+*/
 
 #ifndef __DUMMYFSDUMMYFS_H
 #include "dummyfs.h"
 #endif
 
+/*
+        Close a previously-opened file. See h.fsentries for the
+        parameter block layout.
+*/
 _kernel_oserror *fsentry_close(FSEntry_Close_Parameter * parm)
 {
     return err_DoesNothing;

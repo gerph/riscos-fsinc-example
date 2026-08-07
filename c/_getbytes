@@ -1,8 +1,18 @@
+/*
+        Implementation of the FSEntry_GetBytes entry point. See the
+        prologue for fsentry_getbytes in h.fsentries for the
+        parameters and return convention.
+*/
 
 #ifndef __DUMMYFSDUMMYFS_H
 #include "dummyfs.h"
 #endif
 
+/*
+        Read one byte, or a block of bytes, from an open file. See
+        h.fsentries for the parameter block layout, and the notes
+        below on the buffered/unbuffered distinction.
+*/
 _kernel_oserror *fsentry_getbytes(FSEntry_GetBytes_Parameter * parm)
 {
     _kernel_oserror *err;

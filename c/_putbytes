@@ -1,8 +1,18 @@
+/*
+        Implementation of the FSEntry_PutBytes entry point. See the
+        prologue for fsentry_putbytes in h.fsentries for the
+        parameters and return convention.
+*/
 
 #ifndef __DUMMYFSDUMMYFS_H
 #include "dummyfs.h"
 #endif
 
+/*
+        Write one byte, or a block of bytes, to an open file. See
+        h.fsentries for the parameter block layout, and the notes
+        below on the buffered/unbuffered distinction.
+*/
 _kernel_oserror *fsentry_putbytes(FSEntry_PutBytes_Parameter * parm)
 {
     _kernel_oserror *err;
