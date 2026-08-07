@@ -47,6 +47,7 @@ _kernel_oserror *fsentry_gbpb(FSEntry_GBPB_Parameter * parm)
 
                => parm->sequential_file_pointer-> file offset to
                                 write at (R4)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12485
              */
             err = err_DoesNothing;
@@ -59,6 +60,7 @@ _kernel_oserror *fsentry_gbpb(FSEntry_GBPB_Parameter * parm)
 
                => parm->sequential_file_pointer (R4) is not given on
                                 entry for this reason code
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12485
              */
             err = err_DoesNothing;
@@ -75,6 +77,7 @@ _kernel_oserror *fsentry_gbpb(FSEntry_GBPB_Parameter * parm)
 
                => parm->sequential_file_pointer-> file offset to
                                 read from (R4)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12489
              */
             err = err_DoesNothing;
@@ -87,6 +90,7 @@ _kernel_oserror *fsentry_gbpb(FSEntry_GBPB_Parameter * parm)
 
                => parm->sequential_file_pointer (R4) is not given on
                                 entry for this reason code
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12489
              */
             err = err_DoesNothing;

@@ -33,6 +33,7 @@
                    each open handle to this entry point in turn, so a
                    filing system need not implement "close everything"
                    as a special case)
+
                    See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12285
  Parameters:    parm-> the parameters (see h.fsentries for details)
  Returns:       pointer to error, or NULL if successful

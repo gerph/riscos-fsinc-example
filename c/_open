@@ -65,7 +65,8 @@ _kernel_oserror *fsentry_open(FSEntry_Open_Parameter * parm)
                                 allocated to the file, a multiple of
                                 buffer_size (only if buffer_size
                                 non-zero)
-                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12210
+
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12210
              */
             err = err_DoesNothing;
             break;
@@ -84,7 +85,8 @@ _kernel_oserror *fsentry_open(FSEntry_Open_Parameter * parm)
                <= (as FSEntry_Open_Reason_Update above, but with the
                   write-permitted bit clear in
                   parm->open_result.information_word)
-                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12210
+
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12210
              */
             err = err_DoesNothing;
             break;
@@ -103,7 +105,8 @@ _kernel_oserror *fsentry_open(FSEntry_Open_Parameter * parm)
 
                => (only the common fields above)
                <= (as FSEntry_Open_Reason_Update above)
-                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12210
+
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12210
              */
             err = err_DoesNothing;
             break;

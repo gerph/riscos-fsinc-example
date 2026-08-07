@@ -50,6 +50,7 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                                 attributes
                   parm->special_field (R6) = pointer to the object's
                                 printable, non-wildcarded leafname
+
                   See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12335
              */
             err = err_DoesNothing;
@@ -95,7 +96,8 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                                 the memory block to save (R4-R5)
                <= parm->special_field (R6) = pointer to the object's
                                 printable leafname
-                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12290
+
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12290
              */
             err = err_DoesNothing;
             break;
@@ -114,6 +116,7 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                => parm->name-> the filename (R1)
                   parm->info-> new load/execute addresses (R2-R3)
                   parm->extras.info.attributes-> new attributes (R5)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12294
              */
             err = err_DoesNothing;
@@ -129,6 +132,7 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                => parm->name-> the filename (R1)
                   parm->info.load_exec.load_address->
                                 new load address (R2)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12299
              */
             err = err_DoesNothing;
@@ -144,6 +148,7 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                => parm->name-> the filename (R1)
                   parm->info.load_exec.execute_address->
                                 new execute address (R3)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12304
              */
             err = err_DoesNothing;
@@ -179,7 +184,8 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                => parm->name-> the filename (R1)
                <= (as FSEntry_File_Reason_ReadCatalogueInformation,
                   excluding parm->extras.info.length)
-                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12327
+
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12327
              */
             err = err_DoesNothing;
             break;
@@ -198,7 +204,8 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                   parm->info (R2-R3) = load/execute addresses
                   parm->extras.info.length (R4) = length
                   parm->extras.info.attributes (R5) = attributes
-                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12311
+
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12311
              */
             err = err_DoesNothing;
             break;
@@ -221,7 +228,8 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                                 immediately before deletion
                   parm->extras.info.attributes (R5) = the attributes
                                 it had immediately before deletion
-                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12315
+
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12315
              */
             err = err_DoesNothing;
             break;
@@ -246,6 +254,7 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                                 for a sensible default; ignore this if
                                 your filing system has no fixed-size
                                 directories (R4)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12323
              */
             err = err_DoesNothing;

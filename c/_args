@@ -39,7 +39,8 @@ _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
                <= parm->arg.sequential_pointer (R2) = the byte offset
                                 the next unbuffered/sequential
                                 transfer would read from or write to
-                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12234
+
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12234
              */
             err = err_DoesNothing;
             break;
@@ -59,6 +60,7 @@ _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
 
                => parm->arg.sequential_pointer-> new file pointer,
                                 as a byte offset (R2)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12239
              */
             err = err_DoesNothing;
@@ -73,7 +75,8 @@ _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
                => (only the common fields above)
                <= parm->arg.extent (R2) = the file's current extent,
                                 in bytes
-                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12243
+
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12243
              */
             err = err_DoesNothing;
             break;
@@ -100,6 +103,7 @@ _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
                ignore the call rather than returning an error.
 
                => parm->arg.extent-> new extent, in bytes (R2)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12249
                     http://www.riscos.com/support/developers/prm/writefs.html#idx-12250
              */
@@ -114,7 +118,8 @@ _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
                => (only the common fields above)
                <= parm->arg.allocation_size (R2) = space allocated,
                                 in bytes
-                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12254
+
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12254
              */
             err = err_DoesNothing;
             break;
@@ -136,7 +141,8 @@ _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
                                 equal to the file's current extent, or
                                 0 otherwise - not a plain YesNoAnswer
                                 0/1 value
-                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12258
+
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12258
              */
             err = err_DoesNothing;
             break;
@@ -154,7 +160,8 @@ _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
                <= parm->arg.info (R2-R3) = the file's load and
                                 execute address (an Information_Fields
                                 load_exec pair, see h.veneers), or 0/0
-                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12264
+
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12264
              */
             err = err_DoesNothing;
             break;
@@ -171,6 +178,7 @@ _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
                                 bytes (R2)
                <= parm->arg.allocation_size (R2) = storage actually
                                 ensured, in bytes
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12269
              */
             err = err_DoesNothing;
@@ -188,6 +196,7 @@ _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
                   parm->arg.write_zeros.number-> number of zero bytes
                                 to write, a multiple of the buffer
                                 size (R3)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12273
              */
             err = err_DoesNothing;
@@ -208,7 +217,8 @@ _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
                                 the bottom four bytes of the 5-byte
                                 datestamp, or 0 if this handle cannot
                                 be datestamped
-                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12277
+
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12277
              */
             err = err_DoesNothing;
             break;

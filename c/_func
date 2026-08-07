@@ -49,6 +49,7 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
                                 directory's pathname, possibly
                                 wildcarded, or NULL to mean the user
                                 root directory (R1)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12340
              */
             err = err_DoesNothing;
@@ -64,6 +65,7 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
                                 directory's pathname, possibly
                                 wildcarded, or NULL to mean this
                                 filing system's own default (R1)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12344
              */
             err = err_DoesNothing;
@@ -78,6 +80,7 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
                => parm->first_parameter.name_1-> wildcarded directory
                                 name, or NULL to mean the current
                                 directory (R1)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12348
              */
             err = err_DoesNothing;
@@ -98,6 +101,7 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
                => parm->first_parameter.name_1-> wildcarded directory
                                 name, or NULL to mean the current
                                 directory (R1)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12353
              */
             err = err_DoesNothing;
@@ -114,6 +118,7 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
                                 name relative to the library
                                 directory, or NULL to mean the library
                                 directory itself (R1)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12357
              */
             err = err_DoesNothing;
@@ -133,6 +138,7 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
                                 name relative to the library
                                 directory, or NULL to mean the library
                                 directory itself (R1)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12362
              */
             err = err_DoesNothing;
@@ -148,6 +154,7 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
 
                => parm->first_parameter.name_1-> wildcarded pathname
                                 (R1)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12366
              */
             err = err_DoesNothing;
@@ -169,6 +176,7 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
                                 its default value (R1)
                   parm->second_parameter.parameter-> the new value for
                                 that option (R2)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12370
              */
             err = err_DoesNothing;
@@ -189,6 +197,7 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
                                 are on different discs) - FileSwitch
                                 will then report "Bad rename" to the
                                 caller itself
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12374
              */
             err = err_DoesNothing;
@@ -208,6 +217,7 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
                   parm->second_parameter.access_string-> access
                                 attribute string, terminated by a
                                 null, space, or control character (R2)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12378
              */
             err = err_DoesNothing;
@@ -222,6 +232,7 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
                application.
 
                => (no arguments)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12382
              */
             err = err_DoesNothing;
@@ -246,7 +257,8 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
                   boot option byte, into the buffer: one byte holding
                   the name's length, that many bytes of name, then the
                   boot option byte)
-                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12386
+
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12386
              */
             err = err_DoesNothing;
             break;
@@ -267,7 +279,8 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
                   directory - may create and delete objects there -
                   or &FF for "public" status - may not. FileCore-based
                   filing systems always report owner status)
-                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12390
+
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12390
              */
             err = err_DoesNothing;
             break;
@@ -284,6 +297,7 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
                                 by FileSwitch - validate it yourself,
                                 and return "No writable memory at this
                                 address" if it is not usable (R2)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12394
              */
             err = err_DoesNothing;
@@ -325,7 +339,8 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
                   parm->read_offset (R4) = the continuation value to
                                 pass next time, or -1 if there are no
                                 more entries
-                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12398
+
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12398
              */
             err = err_DoesNothing;
             break;
@@ -351,7 +366,8 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
 
                => (as FSEntry_Func_Reason_ReadDirectoryEntries)
                <= (as FSEntry_Func_Reason_ReadDirectoryEntries)
-                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12403
+
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12403
              */
             err = err_DoesNothing;
             break;
@@ -364,6 +380,7 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
                this filing system before making this call.
 
                => (no arguments)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12407
              */
             err = err_DoesNothing;
@@ -381,6 +398,7 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
                practice.
 
                => (no arguments)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12412
              */
             err = err_DoesNothing;
@@ -432,6 +450,7 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
 
                => parm->first_parameter.name_1-> pathname, wildcarded
                                 only under RISC OS 2 (R1)
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12424
              */
             err = err_DoesNothing;
