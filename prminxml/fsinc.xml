@@ -1,0 +1,1243 @@
+<?xml version="1.0"?>
+<!DOCTYPE riscos-prm PUBLIC "-//Gerph//DTD PRM documentation 1.03//EN"
+                            "http://gerph.org/dtd/103/prm.dtd">
+
+<riscos-prm>
+<chapter title="Writing a filing system in C">
+
+<section title="Introduction">
+<p>
+FileSwitch is the part of the RISC OS kernel that presents a single,
+consistent filing system interface to applications, and dispatches the
+individual operations that make up that interface - no such entity
+exists, so read this as: dispatches the individual operations that make
+up that interface - to whichever filing system module currently owns
+the object being accessed. A filing system module is a normal relocatable
+module that registers a small table of entry points with FileSwitch;
+FileSwitch then calls those entry points directly, in SVC mode, with the
+parameters for each operation packed into registers.
+</p>
+<p>
+Writing a filing system by hand, entirely in assembler, is possible but
+tedious: every entry point receives its parameters in different registers,
+using different reason codes, and the module must cooperate with
+FileSwitch's calling and error-reporting conventions exactly. This chapter
+describes a small, fixed layer - referred to below as the FSinC
+layer - that does that register-level work once, and re-presents each
+FileSwitch call to your code as an ordinary C function taking a pointer to
+a parameter structure. Writing a filing system in C then becomes a matter
+of filling in the bodies of eight C functions, plus a handful of small
+module-lifecycle routines, rather than hand-coding register-level
+dispatch.
+</p>
+<p>
+This chapter is both a reference to the interface FileSwitch presents to a
+filing system module, and a recipe for turning the supplied template
+sources into a working filing system. It draws on the original Acorn
+"Making a Filing System for RISC OS in C" note, on the Filing Systems
+volume of the RISC OS Programmer's Reference Manual, and on the behaviour
+of the supplied template sources themselves.
+</p>
+</section>
+
+
+<section title="Overview">
+<p>
+A filing system module built with the FSinC layer is made up of three
+kinds of source:
+</p>
+<p>
+<list type="unordered">
+<item><p>An assembler veneer, common to every filing system built this way,
+that FileSwitch calls directly. It repackages FileSwitch's register-based
+call into a single parameter-block pointer, calls the matching C function,
+and repackages the C function's return value back into the registers and
+flags FileSwitch expects. You should not normally need to change this
+file.</p></item>
+<item><p>A set of C source files, one per FileSwitch entry point, each
+containing a single function such as <userinput>fsentry_open</userinput>
+or <userinput>fsentry_getbytes</userinput>. These are where your filing
+system's behaviour lives, and are the files you fill in.</p></item>
+<item><p>A CMHG/CMunge module header that declares the module's name, SWI
+chunk, service calls, star commands and error blocks, and a small amount
+of C module-lifecycle code (initialisation, finalisation, service call
+and star command handling, and, if you need any, SWI handling).</p></item>
+</list>
+</p>
+<p>
+The template as supplied builds a filing system called DummyFS, whose
+eight entry-point functions accept every reason code they are offered but
+implement none of them: each case returns
+<reference type="error" name="DoesNothing"/>. DummyFS is a safe skeleton
+to build from: it declares itself to FileSwitch, can be selected with
+<reference type="command" name="DummyFS"/>, and fails cleanly and
+predictably on every actual file operation until you replace the relevant
+cases with real behaviour.
+</p>
+<p>
+Because a filing system module can be called for any object on any open
+handle at almost any time, and because RISC OS has no memory protection
+between modules, a filing system must be conservative in what it assumes
+about its environment. In particular, a filing system entry point is
+guaranteed only 1&nbsp;KB of stack: do not declare large automatic
+variables, and do not write recursive filing system code.
+</p>
+</section>
+
+
+<section title="Technical details">
+
+<subsection title="Registering the module with FileSwitch">
+<p>
+A filing system does not need to poll for work, and it does not claim any
+vector. Instead, when your module initialises, it calls
+<reference type="swi" name="OS_FSControl"/> with reason
+<reference type="swi" name="OS_FSControl" reason="12"/>
+(<userinput>FSControl_AddFilingSystem</userinput>) and a pointer to an
+11-word information block. This tells FileSwitch the filing system's
+name, its information word, and the address of each of the eight entry
+points described in <reference type="section" name="Entry points"/>.
+</p>
+<p>
+Every address placed in the information block, and the address of the
+information block itself, must be given as an offset from the module's
+relocatable-module base (<userinput>Image$$RO$$Base</userinput>), not as
+an absolute address: FileSwitch stores these values and may call them at
+any later time, after the module has been relocated. Register R1 on entry
+to <reference type="swi" name="OS_FSControl" reason="12"/> carries the
+current value of <userinput>Image$$RO$$Base</userinput> itself, so that
+FileSwitch can turn the stored offsets back into absolute addresses when
+it calls you.
+</p>
+<p>
+The information block has the following layout:
+</p>
+<p>
+<offset-table head-number="Word" head-name="Field" head-value="Contents">
+<offset number="0" name="Name offset">offset to the filing system's name, a control-terminated string (also used as the argument to <reference type="swi" name="OS_FSControl" reason="14"/> and <reference type="swi" name="OS_FSControl" reason="16"/>)</offset>
+<offset number="1" name="Title offset">offset to a friendlier, human-readable title string, used in banners and error messages</offset>
+<offset number="2" name="Open">offset to the veneer for <reference type="entry" name="FSEntry_Open"/></offset>
+<offset number="3" name="GetBytes">offset to the veneer for <reference type="entry" name="FSEntry_GetBytes"/></offset>
+<offset number="4" name="PutBytes">offset to the veneer for <reference type="entry" name="FSEntry_PutBytes"/></offset>
+<offset number="5" name="Args">offset to the veneer for <reference type="entry" name="FSEntry_Args"/></offset>
+<offset number="6" name="Close">offset to the veneer for <reference type="entry" name="FSEntry_Close"/></offset>
+<offset number="7" name="File">offset to the veneer for <reference type="entry" name="FSEntry_File"/></offset>
+<offset number="8" name="Information word">flags and filing system number describing the filing system, see below</offset>
+<offset number="9" name="Func">offset to the veneer for <reference type="entry" name="FSEntry_Func"/></offset>
+<offset number="10" name="GBPB">offset to the veneer for <reference type="entry" name="FSEntry_GBPB"/></offset>
+</offset-table>
+</p>
+<p>
+The information word (word 8) is a bitfield:
+</p>
+<p>
+<bitfield-table>
+ <bit number="0-4" name="Filing system number">a small number, unique among filing systems currently active, used internally by FileSwitch and in some file handle encodings</bit>
+ <bit number="5-15" name="Maximum open files">the largest number of files this filing system is prepared to have open simultaneously</bit>
+ <bit number="26" name="Case sensitivity" state="clear">filenames are matched case-insensitively</bit>
+ <bit number="26" name="Case sensitivity" state="set">filenames are matched case-sensitively</bit>
+ <bit number="27-31" state="reserved">reserved, must be zero</bit>
+</bitfield-table>
+</p>
+<p>
+The template's supplied information word is a starting point only: you
+must choose a filing system number that is not already in use (FileSwitch
+rejects a duplicate), and a maximum open file count appropriate to your
+filing system's resources.
+</p>
+<p>
+A filing system module must re-register itself whenever
+<reference type="service" name="FSRedeclare"/> is issued, since this
+service call is FileSwitch's way of asking every filing system to
+re-announce itself, for example after a fresh call chain has been built
+following a module reinitialisation elsewhere in the system. The supplied
+module lifecycle code handles this for you already; you should not need
+to change it.
+</p>
+</subsection>
+
+<subsection title="How FileSwitch calls an entry point">
+<p>
+FileSwitch calls each of the eight entry-point addresses directly, in SVC
+mode, with interrupts enabled, passing the operation's parameters in
+registers R0 upwards (the exact registers used depend on the entry point
+and are described individually below), and the module's private word
+pointer in R12, exactly as for a SWI handler.
+</p>
+<p>
+The supplied assembler veneer for each entry point saves R0-R7, then calls
+the matching C function with a single pointer, in R0, to that saved block
+of registers on the stack. Because the parameter structures in
+<filename>h.veneers</filename> are laid out so that each C structure field
+occupies the same word position as the corresponding incoming register,
+the C function can read and write the incoming parameters as ordinary
+structure fields, and the veneer copies any altered fields back into the
+outgoing registers when the C function returns.
+</p>
+<p>
+On return from the C function:
+</p>
+<p>
+<list type="unordered">
+<item><p>A null return value (no error) leaves the V flag clear and copies
+the (possibly modified) parameter block back into R0-R7 for FileSwitch to
+read as the call's results.</p></item>
+<item><p>A non-null return value is treated as a pointer to a standard RISC
+OS error block. The veneer places this pointer in R0 and sets the V flag,
+exactly as a SWI handler reporting an error would.</p></item>
+<item><p>For <reference type="entry" name="FSEntry_GetBytes"/> specifically,
+the C bit on return also carries meaning, independently of any error: it
+is derived from whether R1 (the <userinput>got_the_byte</userinput> flag)
+is zero on return from the C function, and signals to FileSwitch whether a
+single unbuffered byte read reached end of file. See
+<reference type="entry" name="FSEntry_GetBytes"/> for details.</p></item>
+</list>
+</p>
+<p>
+None of this register or flag manipulation is something your C code needs
+to implement directly: it is entirely the responsibility of the supplied
+veneer. It is described here because it explains why the parameter
+structures are shaped the way they are, and why some fields exist purely
+as padding - they correspond to registers that a particular call
+happens not to use.
+</p>
+</subsection>
+
+<subsection title="Handles and identifiers">
+<p>
+Two distinct handle types appear throughout the parameter structures.
+A <userinput>FileSwitchHandle</userinput> is the handle FileSwitch itself
+uses to identify an open file to the rest of the system (the value an
+application sees from <reference type="swi" name="OS_Find"/>). A
+<userinput>FileSystemHandle</userinput> is a handle chosen and owned by
+your filing system, and returned from
+<reference type="entry" name="FSEntry_Open"/>; FileSwitch subsequently
+quotes this handle back to you on every other call concerning that open
+file, but never interprets it itself. You are free to use any
+representation for a <userinput>FileSystemHandle</userinput> that is
+convenient - an index into a private table of open files is a common
+choice - provided that zero is never returned as a valid handle.
+</p>
+</subsection>
+
+<subsection title="Data structures">
+
+<category title="Information_Fields">
+<p>
+A number of entry points exchange a two-word field whose interpretation
+depends on context: for file load and save operations it holds a pair of
+RISC OS load and execute addresses (or, for filetyped files, the encoded
+filetype and datestamp packed into the load address); for datestamp
+queries it holds the two words of a low/high RISC OS 5-byte-plus timestamp
+pair. The type is defined as a C union so that either view can be used
+without an explicit conversion:
+</p>
+<p>
+<extended-example type="c">
+typedef union Information_Fields
+{
+    struct
+    {
+        char *load_address;
+        char *execute_address;
+    } load_exec;
+    struct
+    {
+        int part_1;
+        int part_2;
+    } date_type;
+} Information_Fields;
+</extended-example>
+</p>
+<p>
+This structure is used directly by
+<reference type="entry" name="FSEntry_Close"/> and
+<reference type="entry" name="FSEntry_File"/>.
+</p>
+</category>
+
+<category title="YesNoAnswer">
+<p>
+A number of fields are simple boolean flags, represented as a plain
+<userinput>int</userinput> typedef'd as <userinput>YesNoAnswer</userinput>,
+with the constants <userinput>No</userinput> (0) and <userinput>Yes</userinput>
+(any non-zero value, conventionally 1) defined for readability. Treat any
+non-zero value as "yes" when reading one of these fields back from a
+caller, rather than testing for the exact value 1.
+</p>
+</category>
+
+</subsection>
+
+<subsection title="Building a filing system from the template">
+<p>
+The template's files divide into three groups: files you are expected to
+edit for every filing system, files you edit only to add module-level
+behaviour such as SWIs or extra star commands, and files you should
+normally leave alone. Working through the template to build a real filing
+system means:
+</p>
+<p>
+<list type="ordered">
+<item><p>Choose a module name, SWI chunk, service numbers and error base, and
+put them in the CMHG/CMunge header. The SWI chunk and error base supplied
+with the template are already in use by the example filing system they
+were extracted from, and must be replaced with values allocated to your
+own filing system before it is used outside of testing.</p></item>
+<item><p>Update the filing system name and information word in the constants
+header (<filename>h.consts</filename> in the template layout) to match
+your filing system.</p></item>
+<item><p>Fill in the eight <userinput>fsentry_*</userinput> functions,
+described in <reference type="section" name="Entry points"/> below, one
+case at a time. Cases you have not yet implemented should continue to
+return <reference type="error" name="DoesNothing"/> (or a more specific
+error such as <reference type="error" name="BadParameters"/> for reason
+codes your filing system will never support) rather than being left to
+fall through unhandled.</p></item>
+<item><p>Fill in the module's initialisation, finalisation, service-call and
+star-command handling for anything specific to your filing system, such as
+opening a connection to the medium you are presenting, or offering
+additional star commands.</p></item>
+<item><p>Add any private state your filing system needs - open-file
+tables, cached directory information, connection state and so on - as
+static data. Keep this as small and simple as you reasonably can: every
+byte of static data is permanently resident for as long as the module is,
+and a filing system with complex internal state is substantially harder
+to make robust against being called re-entrantly or during error
+recovery.</p></item>
+</list>
+</p>
+<p>
+The assembler veneer, the CMHG/CMunge parameter-passing convention, and
+the C parameter-structure headers should not normally need to change: they
+implement the FileSwitch calling convention itself, which is fixed.
+</p>
+</subsection>
+
+</section>
+
+
+<section title="Entry points">
+<p>
+FileSwitch calls the following eight entry points. Each is documented
+below with the registers FileSwitch passes in, the registers it expects
+back, and, where the call is a multi-reason call, one definition per
+reason code. Reason codes not listed under a given entry point are not
+issued by FileSwitch for that entry point and should be rejected with
+<reference type="error" name="BadParameters"/> if ever seen.
+</p>
+
+<entry-definition name="FSEntry_Open"
+                  description="Open a file, directory, or other object for access"
+                  irqs="enabled" fiqs="enabled" processor-mode="SVC" re-entrant="no">
+<entry>
+ <register-use number="0">reason code:
+  <p>
+  <value-table head-number="Reason" head-value="Action">
+   <value number="0"><reference type="entry" name="FSEntry_Open" reason="0" use-description="yes"/></value>
+   <value number="1"><reference type="entry" name="FSEntry_Open" reason="1" use-description="yes"/></value>
+   <value number="2"><reference type="entry" name="FSEntry_Open" reason="2" use-description="yes"/></value>
+  </value-table>
+  </p>
+ </register-use>
+ <register-use number="1">pointer to the object's full pathname, control-terminated</register-use>
+ <register-use number="3">the FileSwitch handle that will identify this open file to the rest of the system</register-use>
+ <register-use number="6">pointer to any filing-system-specific "special field" text following the pathname, or 0 if none was given</register-use>
+</entry>
+<exit>
+ <register-use number="0">information word for the opened object:
+  <bitfield-table>
+   <bit number="31" name="Write" state="set">the caller may write to this file</bit>
+   <bit number="31" name="Write" state="clear">the caller may not write to this file</bit>
+   <bit number="30" name="Read" state="set">the caller may read this file</bit>
+   <bit number="30" name="Read" state="clear">the caller may not read this file</bit>
+   <bit number="29" name="Directory" state="set">the object opened is a directory</bit>
+   <bit number="29" name="Directory" state="clear">the object opened is a file</bit>
+   <bit number="28" name="Unbuffered GBPB" state="set">this filing system implements its own multiple-byte transfers rather than relying on repeated single-byte GetBytes/PutBytes calls</bit>
+   <bit number="27" name="Interactive" state="set">the stream behaves like an interactive device (for example a pipe) rather than a fixed-length file</bit>
+   <bit number="0-26" state="reserved">reserved, should be zero</bit>
+  </bitfield-table>
+ </register-use>
+ <register-use number="1">the FileSystemHandle by which this filing system will subsequently identify this open file; must not be zero</register-use>
+ <register-use number="2">the buffer size FileSwitch should use for buffered transfers to this file, a power of two in the range 64 to 1024; zero requests unbuffered transfers, one byte at a time, via <reference type="entry" name="FSEntry_GetBytes"/> and <reference type="entry" name="FSEntry_PutBytes"/></register-use>
+ <register-use number="3">current file extent (length in bytes); only meaningful when R2 is non-zero</register-use>
+ <register-use number="4">space allocated to the file, which may exceed the extent; only meaningful when R2 is non-zero</register-use>
+</exit>
+<use>
+<p>
+FileSwitch calls <userinput>FSEntry_Open</userinput> whenever an
+application opens a file on this filing system, for example via
+<reference type="swi" name="OS_Find"/>, or when the filing system's own
+housekeeping needs to open an object (for instance, opening a directory in
+order to read its contents). The reason code specifies the access mode
+requested; your filing system should create the object if the mode
+requires it, or fail with an appropriate error (for example "File not
+found" or "Already open for update elsewhere") if it cannot honour the
+request.
+</p>
+<p>
+The returned FileSystemHandle is opaque to FileSwitch: choose any
+non-zero representation that lets your other entry points find the
+corresponding open-file state again, such as an index into a private
+table of open files.
+</p>
+</use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Open" reason="0" reasonname="OpenRead"
+                  description="Open an existing file for reading only">
+<use><p>The named object must already exist; it is opened for read access
+only. Fail with an appropriate error if the object does not exist or is a
+directory.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Open" reason="1" reasonname="CreateUpdate"
+                  description="Create a new file, or open an existing one, for reading and writing">
+<use><p>If the named object does not exist, create it as an empty file. If
+it already exists, open the existing file for both reading and writing,
+leaving its contents intact.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Open" reason="2" reasonname="Update"
+                  description="Open an existing file for reading and writing">
+<use><p>The named object must already exist; it is opened for both reading
+and writing, leaving its contents intact. Fail with an appropriate error
+if the object does not exist.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_GetBytes"
+                  description="Read one byte, or a block of bytes, from an open file"
+                  irqs="enabled" fiqs="enabled" processor-mode="SVC" re-entrant="no">
+<entry>
+ <register-use number="1">the FileSystemHandle returned from <reference type="entry" name="FSEntry_Open"/></register-use>
+ <register-use number="2">buffer address to read into; present only for a buffered (multiple-byte) transfer, undefined for a single-byte unbuffered read</register-use>
+ <register-use number="3">number of bytes to read; present only for a buffered transfer</register-use>
+ <register-use number="4">file offset to read from; present only for a buffered transfer</register-use>
+</entry>
+<exit>
+ <register-use number="0">for a single-byte unbuffered read, the byte read, in the low 8 bits</register-use>
+ <register-use number="1">for a single-byte unbuffered read, a <userinput>YesNoAnswer</userinput> flag: zero if end of file was reached before a byte could be read, non-zero if a byte was read successfully; this is also reflected in the returned C flag (C set means end of file was reached)</register-use>
+</exit>
+<use>
+<p>
+This single entry point serves two distinct purposes, distinguished by
+whether the file was opened for buffered or unbuffered transfer (see the
+buffer size returned from <reference type="entry" name="FSEntry_Open"/>).
+</p>
+<p>
+For a file opened unbuffered (buffer size zero), FileSwitch calls this
+entry point once per byte read by the application, passing only the
+handle in R1; your filing system should return the next sequential byte
+from the file in R0, and indicate end of file, if reached, through R1 and
+the C flag rather than through an error. This mode is simple to implement
+but slow, since every byte transferred costs a full entry-point call.
+</p>
+<p>
+For a file opened buffered, FileSwitch instead calls this entry point to
+refill its own transfer buffer, passing a destination address, a byte
+count and a file offset; your filing system should copy that many bytes
+starting at that file offset into the supplied buffer. Supporting buffered
+transfer is worthwhile for any filing system where individual byte access
+is expensive relative to block access, such as one backed by a physical
+disc or a network connection.
+</p>
+</use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_PutBytes"
+                  description="Write one byte, or a block of bytes, to an open file"
+                  irqs="enabled" fiqs="enabled" processor-mode="SVC" re-entrant="no">
+<entry>
+ <register-use number="0">for a single-byte unbuffered write, the byte to write, in the low 8 bits</register-use>
+ <register-use number="1">the FileSystemHandle returned from <reference type="entry" name="FSEntry_Open"/></register-use>
+ <register-use number="2">buffer address to write from; present only for a buffered (multiple-byte) transfer</register-use>
+ <register-use number="3">number of bytes to write; present only for a buffered transfer</register-use>
+ <register-use number="4">file offset to write to; present only for a buffered transfer</register-use>
+</entry>
+<exit>
+ <register-use number="0-4" state="preserved"/>
+</exit>
+<use>
+<p>
+This is the write counterpart to
+<reference type="entry" name="FSEntry_GetBytes"/>, and is called in the
+same two modes: once per byte, with the byte to write in R0, for a file
+opened unbuffered; or with a source address, count and file offset, for a
+file opened buffered. Writing past the current end of the file should
+extend it; your filing system is responsible for allocating whatever
+storage that requires, and for reporting a "disc full" style error if it
+cannot.
+</p>
+</use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Args"
+                  description="Miscellaneous operations on an open file"
+                  irqs="enabled" fiqs="enabled" processor-mode="SVC" re-entrant="no">
+<entry>
+ <register-use number="0">reason code:
+  <p>
+  <value-table head-number="Reason" head-value="Action">
+   <value number="0"><reference type="entry" name="FSEntry_Args" reason="0" use-description="yes"/></value>
+   <value number="1"><reference type="entry" name="FSEntry_Args" reason="1" use-description="yes"/></value>
+   <value number="2"><reference type="entry" name="FSEntry_Args" reason="2" use-description="yes"/></value>
+   <value number="3"><reference type="entry" name="FSEntry_Args" reason="3" use-description="yes"/></value>
+   <value number="4"><reference type="entry" name="FSEntry_Args" reason="4" use-description="yes"/></value>
+   <value number="5"><reference type="entry" name="FSEntry_Args" reason="5" use-description="yes"/></value>
+   <value number="6"><reference type="entry" name="FSEntry_Args" reason="6" use-description="yes"/></value>
+   <value number="7"><reference type="entry" name="FSEntry_Args" reason="7" use-description="yes"/></value>
+   <value number="8"><reference type="entry" name="FSEntry_Args" reason="8" use-description="yes"/></value>
+   <value number="9"><reference type="entry" name="FSEntry_Args" reason="9" use-description="yes"/></value>
+  </value-table>
+  </p>
+ </register-use>
+ <register-use number="1">the FileSystemHandle returned from <reference type="entry" name="FSEntry_Open"/></register-use>
+ <register-use number="2-3">arguments specific to the reason code, see below</register-use>
+</entry>
+<exit>
+ <register-use number="2-3">results specific to the reason code, see below</register-use>
+</exit>
+<use>
+<p>
+<userinput>FSEntry_Args</userinput> is a catch-all entry point for
+operations on an already-open file that do not fit
+<reference type="entry" name="FSEntry_GetBytes"/> or
+<reference type="entry" name="FSEntry_PutBytes"/>: moving the sequential
+file pointer, querying or changing the file's extent, flushing buffered
+output, and so on. Most reason codes correspond directly to a SWI an
+application can call, such as <reference type="swi" name="OS_Args"/>.
+</p>
+</use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Args" reason="0" reasonname="ReadSequentialFilePointer"
+                  description="Read the current sequential file pointer">
+<exit><register-use number="2">the current sequential file pointer, as a byte offset from the start of the file</register-use></exit>
+<use><p>Return the offset the next unbuffered/sequential transfer would
+read from or write to.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Args" reason="1" reasonname="WriteSequentialFilePointer"
+                  description="Set the current sequential file pointer">
+<entry><register-use number="2">the new sequential file pointer, as a byte offset from the start of the file</register-use></entry>
+<use><p>Move the point at which the next unbuffered/sequential transfer
+will read from or write to. Setting the pointer beyond the current extent
+is valid, and should not itself extend the file.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Args" reason="2" reasonname="ReadFileExtent"
+                  description="Read the current extent (length) of the file">
+<exit><register-use number="2">the file's current extent, in bytes</register-use></exit>
+<use><p>Read the current extent (length) of the file.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Args" reason="3" reasonname="WriteFileExtent"
+                  description="Set the extent (length) of the file">
+<entry><register-use number="2">the new extent, in bytes</register-use></entry>
+<use><p>If the new extent is smaller than the current extent, truncate the
+file; if larger, extend it, filling the new space with zero bytes if
+possible.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Args" reason="4" reasonname="ReadSizeAllocatedToFile"
+                  description="Read the amount of storage allocated to the file">
+<exit><register-use number="2">the space currently allocated to the file, in bytes, which may exceed its extent</register-use></exit>
+<use><p>Read the amount of storage allocated to the file.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Args" reason="5" reasonname="EOFCheck"
+                  description="Test whether the sequential file pointer is at end of file">
+<exit><register-use number="2">a <userinput>YesNoAnswer</userinput>: non-zero if the sequential file pointer is at or beyond the file's extent</register-use></exit>
+<use><p>Test whether the sequential file pointer is at end of file.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Args" reason="6" reasonname="FlushFileBuffer"
+                  description="Flush any buffered output for this file to permanent storage">
+<use><p>Write out any data your filing system has cached in memory for
+this handle, so that the file's contents on the underlying medium are up
+to date. Take no action if there is nothing buffered.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Args" reason="7" reasonname="EnsureFileSize"
+                  description="Ensure at least the given amount of storage is allocated to the file">
+<entry><register-use number="2">the amount of storage, in bytes, that must be available</register-use></entry>
+<use><p>Guarantee that at least this much storage can be allocated to the
+file without failing, without actually changing the file's extent. This
+lets a caller pre-flight a large write before committing to it.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Args" reason="8" reasonname="WriteZerosToFile"
+                  description="Write zero bytes into part of the file">
+<entry>
+ <register-use number="2">byte offset at which to start writing zeros</register-use>
+ <register-use number="3">number of zero bytes to write</register-use>
+</entry>
+<use><p>Write zero bytes into part of the file.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Args" reason="9" reasonname="ReadFileDateStamp"
+                  description="Read the file's datestamp">
+<exit>
+ <register-use number="2">low word of the file's datestamp, in the same format as <reference type="category" name="Information_Fields"/>'s date_type field</register-use>
+ <register-use number="3">high word (filetype and century byte) of the file's datestamp</register-use>
+</exit>
+<use><p>Read the file's datestamp.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Close"
+                  description="Close a previously-opened file"
+                  irqs="enabled" fiqs="enabled" processor-mode="SVC" re-entrant="no">
+<entry>
+ <register-use number="1">the FileSystemHandle returned from <reference type="entry" name="FSEntry_Open"/></register-use>
+ <register-use number="2-3">a <reference type="category" name="Information_Fields">load_exec</reference> pair: new load and execute addresses to stamp on the file when closing, or zero/zero if the caller does not want to change them</register-use>
+</entry>
+<use>
+<p>
+Flush any buffered data for this handle, release any resources associated
+with it (memory, open handles onto the underlying medium, entries in a
+private open-file table), and, if non-zero load and execute addresses
+were supplied, update the file's stored load and execute addresses to
+match before closing. The handle is invalid for any further FileSwitch
+call once this entry point returns successfully.
+</p>
+</use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_File"
+                  description="Operations on a named file or directory that need not be open"
+                  irqs="enabled" fiqs="enabled" processor-mode="SVC" re-entrant="no">
+<entry>
+ <register-use number="0">reason code:
+  <p>
+  <value-table head-number="Reason" head-value="Action">
+   <value number="0"><reference type="entry" name="FSEntry_File" reason="0" use-description="yes"/></value>
+   <value number="1"><reference type="entry" name="FSEntry_File" reason="1" use-description="yes"/></value>
+   <value number="2"><reference type="entry" name="FSEntry_File" reason="2" use-description="yes"/></value>
+   <value number="3"><reference type="entry" name="FSEntry_File" reason="3" use-description="yes"/></value>
+   <value number="4"><reference type="entry" name="FSEntry_File" reason="4" use-description="yes"/></value>
+   <value number="5"><reference type="entry" name="FSEntry_File" reason="5" use-description="yes"/></value>
+   <value number="6"><reference type="entry" name="FSEntry_File" reason="6" use-description="yes"/></value>
+   <value number="7"><reference type="entry" name="FSEntry_File" reason="7" use-description="yes"/></value>
+   <value number="8"><reference type="entry" name="FSEntry_File" reason="8" use-description="yes"/></value>
+   <value number="9"><reference type="entry" name="FSEntry_File" reason="9" use-description="yes"/></value>
+   <value number="255"><reference type="entry" name="FSEntry_File" reason="255" use-description="yes"/></value>
+  </value-table>
+  </p>
+ </register-use>
+ <register-use number="1">pointer to the object's full pathname, control-terminated</register-use>
+ <register-use number="2-3">a <reference type="category" name="Information_Fields"/> pair, meaning dependent on the reason code</register-use>
+ <register-use number="4-5">meaning dependent on the reason code: either a length/attributes pair, or a start/end memory address pair for load and save</register-use>
+ <register-use number="6">pointer to any filing-system-specific "special field" text following the pathname, or 0 if none was given</register-use>
+</entry>
+<exit>
+ <register-use number="0">object type: 0 (not found), 1 (file), 2 (directory), 3 (both a file and a directory, an "image file")</register-use>
+ <register-use number="2-3">a <reference type="category" name="Information_Fields"/> pair describing the object's load and execute addresses, for reason codes that return catalogue information</register-use>
+ <register-use number="4">the object's length in bytes, for reason codes that return catalogue information</register-use>
+ <register-use number="5">the object's access attributes, for reason codes that return catalogue information</register-use>
+ <register-use number="6">pointer to the object's printable leafname, for reason codes that report one</register-use>
+</exit>
+<use>
+<p>
+<userinput>FSEntry_File</userinput> handles whole-object operations
+identified by pathname rather than by an open handle: loading and saving
+a file in one call, creating or deleting an object, reading or writing its
+catalogue entry, and creating directories. It corresponds closely to
+<reference type="swi" name="OS_File"/>.
+</p>
+</use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_File" reason="0" reasonname="SaveFile"
+                  description="Save a block of memory as a new file">
+<entry>
+ <register-use number="2-3">load and execute addresses to give the new file</register-use>
+ <register-use number="4">start address of the data to save</register-use>
+ <register-use number="5">end address (exclusive) of the data to save</register-use>
+</entry>
+<use><p>Save a block of memory as a new file.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_File" reason="1" reasonname="WriteCatalogueInformation"
+                  description="Set a file's load address, execute address, length and attributes together">
+<entry>
+ <register-use number="2-3">new load and execute addresses</register-use>
+ <register-use number="4">new length</register-use>
+ <register-use number="5">new attributes</register-use>
+</entry>
+<use><p>Set a file's load address, execute address, length and attributes together.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_File" reason="2" reasonname="WriteLoadAddress"
+                  description="Set a file's load address">
+<entry><register-use number="2">new load address</register-use></entry>
+<use><p>Set a file's load address.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_File" reason="3" reasonname="WriteExecutionAddress"
+                  description="Set a file's execute address">
+<entry><register-use number="3">new execute address</register-use></entry>
+<use><p>Set a file's execute address.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_File" reason="4" reasonname="WriteAttributes"
+                  description="Set a file's access attributes">
+<entry><register-use number="5">new attributes</register-use></entry>
+<use><p>Set a file's access attributes.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_File" reason="5" reasonname="ReadCatalogueInformation"
+                  description="Read a file's full catalogue entry, including its length">
+<exit>
+ <register-use number="0">object type</register-use>
+ <register-use number="2-3">load and execute addresses</register-use>
+ <register-use number="4">length</register-use>
+ <register-use number="5">attributes</register-use>
+</exit>
+<use><p>Read a file's full catalogue entry, including its length.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_File" reason="6" reasonname="DeleteObject"
+                  description="Delete a file or an empty directory">
+<exit>
+ <register-use number="0">object type of the object that was deleted (0 if it did not exist)</register-use>
+ <register-use number="2-3">the load and execute addresses the object had before deletion</register-use>
+ <register-use number="4">the length the object had before deletion</register-use>
+ <register-use number="5">the attributes the object had before deletion</register-use>
+</exit>
+<use><p>Deleting a non-empty directory should fail with an appropriate
+error rather than deleting its contents.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_File" reason="7" reasonname="CreateFile"
+                  description="Create a new, empty file of a given length">
+<entry>
+ <register-use number="2-3">load and execute addresses to give the new file</register-use>
+ <register-use number="5">length to preallocate for the new file</register-use>
+</entry>
+<use><p>Create a new, empty file of a given length.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_File" reason="8" reasonname="CreateDirectory"
+                  description="Create a new, empty directory">
+<entry><register-use number="4">a hint for the number of entries the directory should be sized for, which a filing system without fixed-size directories may ignore</register-use></entry>
+<use><p>Create a new, empty directory.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_File" reason="9" reasonname="ReadCatalogueInformationNoLength"
+                  description="Read a file's catalogue entry, but not its length">
+<exit>
+ <register-use number="0">object type</register-use>
+ <register-use number="2-3">load and execute addresses</register-use>
+ <register-use number="5">attributes</register-use>
+</exit>
+<use><p>Identical to
+<reference type="entry" name="FSEntry_File" reason="5"/> except that R4
+need not be filled in; this exists because computing a length can be
+expensive for some filing systems, and many callers do not need it.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_File" reason="255" reasonname="LoadFile"
+                  description="Load a whole file into memory">
+<entry>
+ <register-use number="2">address to load the file at, or a small negative pseudo-address requesting that the file's own stamped load address be used instead</register-use>
+</entry>
+<exit>
+ <register-use number="2-3">the load and execute addresses the file was stamped with</register-use>
+ <register-use number="4">the file's length</register-use>
+ <register-use number="5">the file's attributes</register-use>
+ <register-use number="6">pointer to the file's printable leafname</register-use>
+</exit>
+<use><p>Load a whole file into memory.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func"
+                  description="Directory, path and filing-system-wide operations"
+                  irqs="enabled" fiqs="enabled" processor-mode="SVC" re-entrant="no">
+<entry>
+ <register-use number="0">reason code, see below</register-use>
+ <register-use number="1-7">meaning dependent on reason code, see below</register-use>
+</entry>
+<exit>
+ <register-use number="0-7">meaning dependent on reason code, see below</register-use>
+</exit>
+<use>
+<p>
+<userinput>FSEntry_Func</userinput> is the largest and most varied entry
+point: it covers everything that does not belong to an individual open
+file, including setting the current and library directories, cataloguing
+a directory's contents, examining or renaming objects by wildcard, setting
+access attributes, reading and writing filing-system-wide options, and
+handling filing-system shutdown. Many reason codes correspond directly to
+a star command or SWI available to applications.
+</p>
+<p>
+A minimal filing system can decline the more elaborate reason codes (for
+example wildcard renaming or the extended directory-reading calls) with
+<reference type="error" name="BadParameters"/> and still be usable, as
+long as it supports at least setting/reading the current directory and
+cataloguing it, since these underlie basic pathname resolution.
+</p>
+</use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="0" reasonname="SetCurrentDirectory"
+                  description="Set the current directory">
+<entry><register-use number="1">pointer to the new current directory's pathname</register-use></entry>
+<use><p>Set the current directory.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="1" reasonname="SetLibraryDirectory"
+                  description="Set the library directory">
+<entry><register-use number="1">pointer to the new library directory's pathname</register-use></entry>
+<use><p>Set the library directory.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="2" reasonname="CatalogueDirectory"
+                  description="Produce a *CAT-style listing of the current directory">
+<use><p>Write a directory listing directly to the current output stream,
+in the same style as the <userinput>*CAT</userinput> command produces for
+other filing systems.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="3" reasonname="ExamineCurrentDirectory"
+                  description="Return the name of the current directory">
+<exit><register-use number="1">pointer to the current directory's pathname</register-use></exit>
+<use><p>Return the name of the current directory.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="4" reasonname="CatalogueLibraryDirectory"
+                  description="Produce a *EX-style listing of the library directory">
+<use><p>Produce a *EX-style listing of the library directory.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="5" reasonname="ExamineLibraryDirectory"
+                  description="Return the name of the library directory">
+<exit><register-use number="1">pointer to the library directory's pathname</register-use></exit>
+<use><p>Return the name of the library directory.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="6" reasonname="ExamineObjects"
+                  description="Wildcard-examine a set of objects">
+<entry>
+ <register-use number="1">pointer to a wildcarded pathname</register-use>
+ <register-use number="2">pointer to a buffer to receive matching leafnames</register-use>
+</entry>
+<use><p>Wildcard-examine a set of objects.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="7" reasonname="SetFilingSystemOptions"
+                  description="Set filing-system-wide options">
+<entry><register-use number="2">pointer to an option string, in the same style as the arguments to a filing system's own configuration star command</register-use></entry>
+<use><p>Set filing-system-wide options.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="8" reasonname="RenameObject"
+                  description="Rename or move an object, possibly with wildcards">
+<entry>
+ <register-use number="1">pointer to the source pathname</register-use>
+ <register-use number="2">pointer to the destination pathname</register-use>
+</entry>
+<exit><register-use number="1">a <userinput>YesNoAnswer</userinput>: non-zero if the rename could not be performed because it would be invalid (for example renaming a directory into itself)</register-use></exit>
+<use><p>Rename or move an object, possibly with wildcards.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="9" reasonname="AccessObjects"
+                  description="Set access attributes on a set of objects, possibly with wildcards">
+<entry>
+ <register-use number="1">pointer to a wildcarded pathname</register-use>
+ <register-use number="2">pointer to the access attribute string to apply</register-use>
+</entry>
+<use><p>Set access attributes on a set of objects, possibly with wildcards.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="10" reasonname="BootFilingSystem"
+                  description="Perform *OPT4-style boot handling for this filing system">
+<use><p>Perform *OPT4-style boot handling for this filing system.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="11" reasonname="ReadNameAndBootOptionOfDisc"
+                  description="Read the name and boot option of the currently-selected medium">
+<exit>
+ <register-use number="2">pointer to the medium's name</register-use>
+ <register-use number="3">boot option number</register-use>
+</exit>
+<use><p>Read the name and boot option of the currently-selected medium.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="12" reasonname="ReadCurrentDirectoryNameAndPrivilegeByte"
+                  description="Read the current directory's name together with its access privilege">
+<exit>
+ <register-use number="1">pointer to the current directory's pathname</register-use>
+ <register-use number="2">privilege byte for the current directory</register-use>
+</exit>
+<use><p>Read the current directory's name together with its access privilege.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="13" reasonname="ReadLibraryDirectoryNameAndPrivilegeByte"
+                  description="Read the library directory's name together with its access privilege">
+<exit>
+ <register-use number="1">pointer to the library directory's pathname</register-use>
+ <register-use number="2">privilege byte for the library directory</register-use>
+</exit>
+<use><p>Read the library directory's name together with its access privilege.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="14" reasonname="ReadDirectoryEntries"
+                  description="Read a block of directory entry leafnames">
+<entry>
+ <register-use number="1">pointer to the directory's pathname, or 0 for the current directory</register-use>
+ <register-use number="2">pointer to a buffer to receive leafnames</register-use>
+ <register-use number="3">maximum number of entries to return</register-use>
+ <register-use number="4">index of the first entry to read (an opaque continuation value, not necessarily a simple sequential index)</register-use>
+ <register-use number="5">buffer length in bytes</register-use>
+</entry>
+<exit>
+ <register-use number="3">number of entries actually returned</register-use>
+ <register-use number="4">the index to pass next time to continue reading, or -1 if there are no more entries</register-use>
+</exit>
+<use><p>Read a block of directory entry leafnames.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="15" reasonname="ReadDirectoriesAndInformation"
+                  description="Read a block of directory entries together with their catalogue information">
+<use><p>As <reference type="entry" name="FSEntry_Func" reason="14"/>, but
+the returned buffer holds full catalogue information (load/execute
+addresses, length, attributes) for each entry alongside its
+leafname.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="16" reasonname="ShutDown"
+                  description="Prepare for the machine to be shut down or reset">
+<use><p>Flush any buffered data for every open file and close down any
+outstanding connections to the underlying medium, since the machine may
+be powered off immediately after this call returns.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="17" reasonname="PrintStartUpBanner"
+                  description="Print a start-up banner describing the current directory when this filing system is selected">
+<use><p>Print a start-up banner describing the current directory when this filing system is selected.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="18" reasonname="SetDirectoryContexts"
+                  description="Set the current, library and other directory contexts together">
+<use><p>Set the current, library and other directory contexts together.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="19" reasonname="ReadDirectoryEntriesAndInformation"
+                  description="Read a block of directory entries and full catalogue information, RISC OS 3 style">
+<use><p>A revised form of
+<reference type="entry" name="FSEntry_Func" reason="15"/> with a
+differently-shaped output buffer, introduced for
+<reference type="swi" name="OS_GBPB"/> reason codes 9 and 10.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_Func" reason="20" reasonname="OutputFullInformationOnObjects"
+                  description="Produce a *EX-style full information listing for a set of objects">
+<use><p>Produce a *EX-style full information listing for a set of objects.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_GBPB"
+                  description="Transfer multiple bytes to or from an open file at an explicit offset"
+                  irqs="enabled" fiqs="enabled" processor-mode="SVC" re-entrant="no">
+<entry>
+ <register-use number="0">reason code:
+  <p>
+  <value-table head-number="Reason" head-value="Action">
+   <value number="1"><reference type="entry" name="FSEntry_GBPB" reason="1" use-description="yes"/></value>
+   <value number="2"><reference type="entry" name="FSEntry_GBPB" reason="2" use-description="yes"/></value>
+   <value number="3"><reference type="entry" name="FSEntry_GBPB" reason="3" use-description="yes"/></value>
+   <value number="4"><reference type="entry" name="FSEntry_GBPB" reason="4" use-description="yes"/></value>
+  </value-table>
+  </p>
+ </register-use>
+ <register-use number="1">the FileSystemHandle returned from <reference type="entry" name="FSEntry_Open"/></register-use>
+ <register-use number="2">buffer address to transfer to or from</register-use>
+ <register-use number="3">number of bytes to transfer</register-use>
+ <register-use number="4">file offset to transfer at, for the "here" reason codes; ignored, in favour of the file's own sequential pointer, for the other two</register-use>
+</entry>
+<exit>
+ <register-use number="2">updated buffer address, after the transferred bytes</register-use>
+ <register-use number="3">number of bytes not transferred (zero if the whole transfer completed)</register-use>
+ <register-use number="4">updated file offset, after the transferred bytes</register-use>
+</exit>
+<use>
+<p>
+This entry point exists so that a filing system able to transfer many
+bytes in one operation is not forced through the byte-at-a-time
+<reference type="entry" name="FSEntry_GetBytes"/>/
+<reference type="entry" name="FSEntry_PutBytes"/> interface; it is only
+used when
+<reference type="entry" name="FSEntry_Open"/> reported unbuffered GBPB
+support in its returned information word. It corresponds to
+<reference type="swi" name="OS_GBPB"/> reason codes 1-4 for an already-open
+file.
+</p>
+</use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_GBPB" reason="1" reasonname="PutMultipleBytesHere"
+                  description="Write multiple bytes at a given file offset">
+<use><p>Write multiple bytes at a given file offset.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_GBPB" reason="2" reasonname="PutMultipleBytes"
+                  description="Write multiple bytes at the file's current sequential pointer">
+<use><p>Write multiple bytes at the file's current sequential pointer.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_GBPB" reason="3" reasonname="GetMultipleBytesHere"
+                  description="Read multiple bytes from a given file offset">
+<use><p>Read multiple bytes from a given file offset.</p></use>
+<related></related>
+</entry-definition>
+
+<entry-definition name="FSEntry_GBPB" reason="4" reasonname="GetMultipleBytes"
+                  description="Read multiple bytes from the file's current sequential pointer">
+<use><p>Read multiple bytes from the file's current sequential pointer.</p></use>
+<related></related>
+</entry-definition>
+
+</section>
+
+
+<section title="Service calls">
+<p>
+A filing system module handles the following service call.
+</p>
+
+<service-definition name="FSRedeclare"
+                    number="40"
+                    description="All filing systems should re-declare themselves to FileSwitch">
+<entry>
+ <register-use number="1">&hex;40 (reason code)</register-use>
+</entry>
+<exit>
+ <register-use number="0-9" state="preserved"/>
+</exit>
+<use>
+<p>
+FileSwitch issues this service call to ask every currently active filing
+system to call
+<reference type="swi" name="OS_FSControl" reason="12"/> again, exactly as
+it did during initialisation. A filing system module must claim this
+service call and re-register itself in response; otherwise it can be left
+unreachable after certain module reinitialisation sequences elsewhere in
+the system.
+</p>
+</use>
+<related></related>
+</service-definition>
+</section>
+
+
+<section title="Error messages">
+<p>
+The template declares the following errors. Only
+<reference type="error" name="DoesNothing"/> belongs to the template
+itself; the other two are commonly needed by any real filing system and
+are provided as a starting point.
+</p>
+
+<error-definition name="NoMemory"
+                  number="12100"
+                  description="Not enough free memory">
+<use><p>Report this when an operation cannot be completed because memory
+(RMA, workspace, or a private buffer) could not be claimed.</p></use>
+</error-definition>
+
+<error-definition name="BadParameters"
+                  number="12101"
+                  description="Bad parameters passed internally">
+<use><p>Returned by the supplied template code for any reason code an
+entry point's <userinput>switch</userinput> statement does not recognise.
+Because FileSwitch only ever issues reason codes documented in
+<reference type="section" name="Entry points"/>, seeing this error
+normally indicates a mismatch between the module and the version of
+FileSwitch calling it, rather than a caller error.</p></use>
+</error-definition>
+
+<error-definition name="DoesNothing"
+                  number="12102"
+                  description="This dummy filing system does nothing">
+<use><p>Returned by every unimplemented case in the template's
+<userinput>fsentry_*</userinput> functions. A finished filing system
+should not return this error for any reason code it actually expects to
+receive in normal use; replace each case with real behaviour, or with a
+more specific and meaningful error, as you implement the corresponding
+functionality.</p></use>
+</error-definition>
+
+</section>
+
+
+<section title="*Commands">
+<p>
+The template provides a single star command, which every filing system
+built from it should rename to match the filing system's own name.
+</p>
+
+<command-definition name="DummyFS"
+                    description="Select DummyFS as the current filing system">
+<syntax>
+</syntax>
+<use>
+<p>
+Selects this filing system as the current filing system, exactly as
+<userinput>*ADFS</userinput> or <userinput>*NET</userinput> do for their
+own filing systems. Internally this calls
+<reference type="swi" name="OS_FSControl" reason="14"/>
+(<userinput>FSControl_SelectFilingSystem</userinput>) with the filing
+system's registered name.
+</p>
+</use>
+<example>
+<command>*DummyFS</command>
+</example>
+</command-definition>
+</section>
+
+
+<section title="Examples">
+
+<subsection title="Implementing unbuffered reads">
+<p>
+The following sketch shows how
+<reference type="entry" name="FSEntry_GetBytes"/> might be implemented
+for a filing system that keeps each open file as a single contiguous
+block in memory, addressed through a private open-file table indexed by
+the FileSystemHandle:
+</p>
+<p>
+<extended-example type="c">
+_kernel_oserror *fsentry_getbytes(FSEntry_GetBytes_Parameter *parm)
+{
+    OpenFile *file = openfile_from_handle(parm-&gt;getbytes_definition.handle);
+
+    if (file-&gt;position &gt;= file-&gt;length)
+    {
+        /* End of file: tell the veneer no byte was read, so that it
+           reports this to FileSwitch through the C flag. */
+        parm-&gt;getbytes_result.got_the_byte = No;
+        return NULL;
+    }
+
+    parm-&gt;getbytes_result.byte_got = file-&gt;data[file-&gt;position++];
+    parm-&gt;getbytes_result.got_the_byte = Yes;
+    return NULL;
+}
+</extended-example>
+</p>
+<p>
+Note that the same union is used for both the incoming parameters
+(<userinput>getbytes_definition</userinput>) and the outgoing result
+(<userinput>getbytes_result</userinput>): the handle read from
+<userinput>parm-&gt;getbytes_definition.handle</userinput> at the start of
+the function is at the same address as
+<userinput>parm-&gt;getbytes_result.byte_got</userinput> that is written at
+the end, so read every field you need from the incoming parameter block
+before you start writing the outgoing result into it.
+</p>
+</subsection>
+
+<subsection title="Declaring a filing system with a fresh SWI chunk and error base">
+<p>
+Before any filing system built from this template is used outside of
+testing, its CMHG/CMunge header must be given values that are actually
+allocated to it, not the placeholder values copied from the example this
+template was extracted from:
+</p>
+<p>
+<extended-example type="pseudo">
+swi-chunk-base-number: <userreplace>your allocated SWI chunk</userreplace>
+
+error-base: &amp;<userreplace>your allocated error base</userreplace>
+</extended-example>
+</p>
+</subsection>
+
+</section>
+
+</chapter>
+
+<meta>
+ <maintainer>
+  <email name="Charles Ferguson" address="gerph@gerph.org" />
+ </maintainer>
+ <disclaimer>
+    <p>
+        &copy; Charles Ferguson, 2026. Derived from the original Acorn
+        "Making a Filing System for RISC OS in C" developer note by
+        Jonathan Roach, and from the RISC OS Programmer's Reference
+        Manual description of the FileSwitch/filing system interface.
+    </p>
+ </disclaimer>
+
+ <history>
+  <revision number="1" author="Jonathan Roach" date="19 Feb 1990" title="Original note">
+    <change>Original "Making a Filing System for RISC OS in C" developer note describing the template sources.</change>
+  </revision>
+  <revision number="2" author="Charles Ferguson" date="07 Aug 2026" title="PRM-in-XML conversion">
+    <change>Converted the original recipe into PRM-in-XML, and added a full reference to the FileSwitch entry points, their reason codes, the data structures they exchange, and the calling convention implemented by the supplied veneer.</change>
+  </revision>
+ </history>
+
+ <related>
+    <reference type='document' href='?' name="Filing Systems (RISC OS Programmer's Reference Manual)" />
+ </related>
+</meta>
+</riscos-prm>
