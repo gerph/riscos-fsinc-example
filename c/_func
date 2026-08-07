@@ -12,7 +12,10 @@
 /*
         Directory, path and filing-system-wide operations, selected
         by parm->reason. See h.fsentries for the parameter block
-        layout.
+        layout. A minimal filing system can decline the more elaborate
+        reason codes with err_BadParameters and still be usable,
+        provided it supports at least setting/reading the current
+        directory and cataloguing it.
 */
 _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
 {
@@ -21,86 +24,206 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
     switch (parm->reason)
     {
         case FSEntry_Func_Reason_SetCurrentDirectory:
+            /*
+               parm->first_parameter.name_1 (R1) gives the pathname
+               of the new current directory. Make it current.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Func_Reason_SetLibraryDirectory:
+            /*
+               parm->first_parameter.name_1 (R1) gives the pathname
+               of the new library directory. Make it current.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Func_Reason_CatalogueDirectory:
+            /*
+               No arguments. Write a *CAT-style listing of the
+               current directory directly to the current output
+               stream.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Func_Reason_ExamineCurrentDirectory:
+            /*
+               Set parm->first_parameter.name_1 (R1) to point at the
+               current directory's pathname.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Func_Reason_CatalogueLibraryDirectory:
+            /*
+               No arguments. Write a *EX-style listing of the library
+               directory directly to the current output stream.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Func_Reason_ExamineLibraryDirectory:
+            /*
+               Set parm->first_parameter.name_1 (R1) to point at the
+               library directory's pathname.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Func_Reason_ExamineObjects:
+            /*
+               parm->first_parameter.name_1 (R1) gives a wildcarded
+               pathname; parm->second_parameter.destination_address
+               (R2) gives a buffer to receive matching leafnames.
+               Write the matches into the buffer.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Func_Reason_SetFilingSystemOptions:
+            /*
+               parm->second_parameter.access_string (R2) gives an
+               option string, in the same style as this filing
+               system's own configuration star command. Apply it.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Func_Reason_RenameObject:
+            /*
+               parm->first_parameter.name_1 (R1) gives the source
+               pathname (possibly wildcarded), and
+               parm->second_parameter.name_2 (R2) the destination
+               pathname. Rename/move the object(s). Set
+               parm->first_parameter.rename_invalid (R1 on exit) to
+               Yes if the rename cannot be performed (for example,
+               renaming a directory into itself).
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Func_Reason_AccessObjects:
+            /*
+               parm->first_parameter.name_1 (R1) gives a wildcarded
+               pathname, and parm->second_parameter.access_string
+               (R2) the access attribute string to apply to every
+               matching object.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Func_Reason_BootFilingSystem:
+            /*
+               No arguments. Perform *OPT4-style boot handling for
+               this filing system (for example, running a boot file
+               from the root of the currently-selected medium).
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Func_Reason_ReadNameAndBootOptionOfDisc:
+            /*
+               Set parm->second_parameter.destination_address (R2) to
+               point at the medium's name, and
+               parm->third_parameter.read_number (R3) to its boot
+               option number.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Func_Reason_ReadCurrentDirectoryNameAndPrivilegeByte:
+            /*
+               Set parm->first_parameter.name_1 (R1) to point at the
+               current directory's pathname, and
+               parm->second_parameter.parameter (R2) to its privilege
+               byte.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Func_Reason_ReadLibraryDirectoryNameAndPrivilegeByte:
+            /*
+               Set parm->first_parameter.name_1 (R1) to point at the
+               library directory's pathname, and
+               parm->second_parameter.parameter (R2) to its privilege
+               byte.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Func_Reason_ReadDirectoryEntries:
+            /*
+               parm->first_parameter.name_1 (R1, or 0 for the current
+               directory), parm->second_parameter.destination_address
+               (R2), parm->third_parameter.read_number (R3, maximum
+               entries), parm->read_offset (R4, an opaque
+               continuation value) and parm->buffer_length (R5) give
+               the request. Fill the buffer with up to that many
+               leafnames, set parm->third_parameter.read_number (R3)
+               to the number actually returned, and parm->read_offset
+               (R4) to the continuation value for the next call, or
+               -1 if there are no more entries.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Func_Reason_ReadDirectoriesAndInformation:
+            /*
+               As ReadDirectoryEntries above, but the buffer at
+               parm->second_parameter.destination_address (R2) must
+               also be filled with each entry's catalogue information
+               (load/execute addresses, length, attributes) alongside
+               its leafname.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Func_Reason_ShutDown:
+            /*
+               No arguments. Flush any buffered data for every open
+               file and close down any outstanding connections to the
+               underlying medium, since the machine may be powered
+               off immediately after this call returns.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Func_Reason_PrintStartUpBanner:
+            /*
+               No arguments. Print a start-up banner describing the
+               current directory, for when this filing system is
+               selected with its star command.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Func_Reason_SetDirectoryContexts:
+            /*
+               Set the current, library and other directory contexts
+               together from the supplied parameters; see
+               prminxml/fsinc.xml for the parameter layout.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Func_Reason_ReadDirectoryEntriesAndInformation:
+            /*
+               A RISC OS 3-style revision of
+               ReadDirectoriesAndInformation above, with a differently
+               shaped output buffer, used by OS_GBPB reasons 9 and 10.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Func_Reason_OutputFullInformationOnObjects:
+            /*
+               parm->first_parameter.name_1 (R1) gives a wildcarded
+               pathname. Write a *EX-style full information listing
+               for the matching objects directly to the current
+               output stream.
+             */
             err = err_DoesNothing;
             break;
 

@@ -14,5 +14,18 @@
 */
 _kernel_oserror *fsentry_close(FSEntry_Close_Parameter * parm)
 {
+    /*
+       parm->handle (R1) identifies the file to close. Flush any
+       buffered data for this handle, and release any resources
+       (memory, table entries, handles onto the underlying medium)
+       you allocated for it in fsentry_open.
+
+       parm->info (R2-R3) gives new load and execute addresses to
+       stamp on the file as it closes; if both are zero, leave the
+       file's existing load and execute addresses unchanged.
+
+       The handle must not be used again after this call returns
+       successfully.
+     */
     return err_DoesNothing;
 }

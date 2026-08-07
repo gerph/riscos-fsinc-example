@@ -12,6 +12,8 @@
 /*
         Miscellaneous operations on an open file, selected by
         parm->reason. See h.fsentries for the parameter block layout.
+        parm->handle (R1) identifies the open file for every reason
+        code below.
 */
 _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
 {
@@ -20,42 +22,95 @@ _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
     switch (parm->reason)
     {
         case FSEntry_Args_Reason_ReadSequentialFilePointer:
+            /*
+               Set parm->arg.sequential_pointer (R2) to the byte
+               offset the next unbuffered/sequential transfer would
+               read from or write to.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_WriteSequentialFilePointer:
+            /*
+               Read parm->arg.sequential_pointer (R2) and move this
+               file's sequential pointer to that byte offset. Moving
+               it past the current extent is valid and must not
+               itself extend the file.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_ReadFileExtent:
+            /*
+               Set parm->arg.extent (R2) to the file's current extent
+               in bytes.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_WriteFileExtent:
+            /*
+               Read parm->arg.extent (R2) and set the file's extent
+               to that many bytes: truncate if smaller than the
+               current extent, or extend (ideally zero-filling the
+               new space) if larger.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_ReadSizeAllocatedToFile:
+            /*
+               Set parm->arg.allocation_size (R2) to the space
+               currently allocated to the file, which may exceed its
+               extent.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_EOFCheck:
+            /*
+               Set parm->arg.EOF_Has_Been_Reached (R2) to Yes if the
+               sequential file pointer is at or beyond the file's
+               extent, or No otherwise.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_FlushFileBuffer:
+            /*
+               No arguments. Write out any data buffered in memory
+               for this handle so the underlying medium is up to
+               date; do nothing if there is nothing buffered.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_EnsureFileSize:
+            /*
+               Read parm->arg.allocation_size (R2) and guarantee that
+               at least this much storage could be allocated to the
+               file without failing, without actually changing the
+               file's extent (a pre-flight check before a large
+               write).
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_WriteZerosToFile:
+            /*
+               Read parm->arg.write_zeros.start (R2) and
+               parm->arg.write_zeros.number (R3), and write that many
+               zero bytes into the file starting at that offset,
+               extending the file if required.
+             */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_ReadFileDateStamp:
+            /*
+               Set parm->arg.info (R2-R3, an Information_Fields
+               date_type pair) to the file's datestamp.
+             */
             err = err_DoesNothing;
             break;
 

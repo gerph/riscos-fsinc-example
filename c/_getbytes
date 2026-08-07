@@ -17,6 +17,28 @@ _kernel_oserror *fsentry_getbytes(FSEntry_GetBytes_Parameter * parm)
 {
     _kernel_oserror *err;
 
+    /*
+       This single entry point is called in two different ways,
+       distinguished only by which fields FileSwitch has filled in;
+       there is no reason code to switch on.
+
+       Unbuffered (single byte) transfer: only
+       parm->getbytes_definition.handle (R1) is meaningful on entry.
+       Fetch the next sequential byte for that file and set:
+         parm->getbytes_result.byte_got (R0, low 8 bits) = the byte
+         parm->getbytes_result.got_the_byte (R1) = Yes, or No if the
+             sequential pointer is already at end of file
+       The veneer derives the returned C flag from whether R1 is zero,
+       so got_the_byte is how end-of-file is reported here, not the
+       returned _kernel_oserror.
+
+       Buffered transfer: parm->getbytes_definition.handle (R1),
+       .destination_start (R2), .bytes_to_read (R3) and
+       .file_offset_to_get_data_from (R4) are all meaningful. Copy
+       bytes_to_read bytes from the file, starting at
+       file_offset_to_get_data_from, into the buffer at
+       destination_start.
+     */
     err = err_DoesNothing;
 
     return err;

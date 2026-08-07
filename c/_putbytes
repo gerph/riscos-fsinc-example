@@ -17,6 +17,28 @@ _kernel_oserror *fsentry_putbytes(FSEntry_PutBytes_Parameter * parm)
 {
     _kernel_oserror *err;
 
+    /*
+       As with fsentry_getbytes, this entry point is called in two
+       different ways, distinguished by which fields are meaningful;
+       there is no reason code to switch on.
+
+       Unbuffered (single byte) transfer: parm->byte_to_put (R0, low
+       8 bits) and parm->handle (R1) are meaningful. Write that one
+       byte at the file's current sequential pointer, advancing it,
+       and extending the file if the pointer was at its end.
+
+       Buffered transfer: parm->handle (R1), parm->source_start (R2),
+       parm->bytes_to_write (R3) and parm->file_offset_to_put_data_to
+       (R4) are all meaningful. Copy bytes_to_write bytes from the
+       buffer at source_start into the file starting at
+       file_offset_to_put_data_to, extending the file if the write
+       goes past its current extent.
+
+       Either way, fail with a "disc full" style error (matching the
+       pattern used by other filing systems, see doc.FSinC and
+       prminxml/fsinc.xml) if there is not enough free space to
+       extend the file as required.
+     */
     err = err_DoesNothing;
 
     return err;
