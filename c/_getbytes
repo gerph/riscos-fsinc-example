@@ -21,7 +21,13 @@
                 match the buffered/unbuffered mode chosen when the
                 file was opened by fsentry_open (c._open).
 
-                Unbuffered (single byte) transfer:
+                Unbuffered (single byte) transfer, called once per
+                byte read by the application; advance the file's
+                sequential pointer by one on a successful read. A
+                filing system must not keep its own "EOF error on next
+                read" flag - FileSwitch does that - so it is enough to
+                compare the sequential pointer with the extent on
+                every call.
 
                 => parm->getbytes_definition.handle-> the
                                 FileSystemHandle from fsentry_open
@@ -31,23 +37,32 @@
                    parm->getbytes_result.got_the_byte (R1) = Yes, or
                                 No if the sequential pointer was
                                 already at end of file
+                   See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12220
 
                 The veneer in s.interface derives the returned C flag
                 from whether R1 is zero, so got_the_byte is how end
                 of file is reported here, not the returned
                 _kernel_oserror.
 
-                Buffered transfer:
+                Buffered transfer, requested either to refill
+                FileSwitch's own cache, or to satisfy a whole-buffer
+                OS_GBPB transfer direct into the caller's memory:
 
                 => parm->getbytes_definition.handle-> the
                                 FileSystemHandle from fsentry_open (R1)
                    parm->getbytes_definition.destination_start->
-                                buffer to fill (R2)
+                                buffer to fill, not necessarily
+                                word-aligned (R2)
                    parm->getbytes_definition.bytes_to_read->
-                                number of bytes to read (R3)
+                                number of bytes to read, a multiple of
+                                the buffer size given from
+                                fsentry_open (R3)
                    parm->getbytes_definition.file_offset_to_get_data_from->
-                                file offset to read from (R4)
+                                file offset to read from, a multiple
+                                of the buffer size and within the
+                                file's extent (R4)
                 <= (nothing; the buffer at destination_start is filled)
+                   See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12215
  Parameters:    parm-> the parameters (see h.fsentries for details)
  Returns:       pointer to error, or NULL if successful
  ******************************************************************/

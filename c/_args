@@ -29,76 +29,132 @@ _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
     switch (parm->reason)
     {
         case FSEntry_Args_Reason_ReadSequentialFilePointer:
-            /* Read the current sequential file pointer.
+            /* Read the current sequential file pointer. Needed only
+               for unbuffered files. If the concept of a sequential
+               pointer is meaningless for this filing system (a
+               keyboard stream, for example), return a pointer of 0
+               rather than an error.
 
                => (only the common fields above)
                <= parm->arg.sequential_pointer (R2) = the byte offset
                                 the next unbuffered/sequential
                                 transfer would read from or write to
+                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12234
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_WriteSequentialFilePointer:
-            /* Set the current sequential file pointer. Moving it
-               past the current extent is valid and must not itself
-               extend the file.
+            /* Set the current sequential file pointer. Needed only
+               for unbuffered files. If the new pointer is greater
+               than the file's current extent: when the file was
+               opened only for reading, or only read access was
+               granted, return the error "Outside file"; otherwise
+               extend the file with zero bytes and set its new extent
+               to the new pointer, returning an error as soon as
+               possible (and before updating the extent) if the file
+               cannot be extended. If the concept of a sequential
+               pointer is meaningless for this filing system, ignore
+               the call rather than returning an error.
 
                => parm->arg.sequential_pointer-> new file pointer,
                                 as a byte offset (R2)
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12239
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_ReadFileExtent:
-            /* Read the current extent (length) of the file.
+            /* Read the current extent (length) of the file. Needed
+               only for unbuffered files. If the concept of a file
+               extent is meaningless for this filing system, return
+               an extent of 0 rather than an error.
 
                => (only the common fields above)
                <= parm->arg.extent (R2) = the file's current extent,
                                 in bytes
+                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12243
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_WriteFileExtent:
-            /* Set the extent (length) of the file: truncate if
-               smaller than the current extent, or extend (ideally
-               zero-filling the new space) if larger.
+            /* Set the extent (length) of the file. Needed by every
+               filing system, buffered or not, but the two cases
+               behave differently.
+
+               For a buffered file, FileSwitch only ever makes this
+               call to fix the file's real length just before it is
+               closed: simply record R2 as the object's new
+               catalogued length, without otherwise touching the
+               file's content.
+
+               For an unbuffered file, FileSwitch can make this call
+               at any time. If the new extent is less than the
+               current sequential pointer, move the pointer in to
+               match. If the new extent is greater than the current
+               one, extend the file with zero bytes, returning an
+               error as soon as possible (and before updating the
+               extent) if it cannot be extended. If the concept of a
+               file extent is meaningless for this filing system,
+               ignore the call rather than returning an error.
 
                => parm->arg.extent-> new extent, in bytes (R2)
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12249
+                    http://www.riscos.com/support/developers/prm/writefs.html#idx-12250
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_ReadSizeAllocatedToFile:
             /* Read the amount of storage allocated to the file,
-               which may exceed its extent.
+               which may exceed its extent. Every filing system must
+               support this reason code.
 
                => (only the common fields above)
                <= parm->arg.allocation_size (R2) = space allocated,
                                 in bytes
+                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12254
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_EOFCheck:
             /* Test whether the sequential file pointer is at end of
-               file.
+               file. Needed only for unbuffered files. If a filing
+               system does not support a sequential pointer and/or
+               file extent, because the concept is meaningless, the
+               treatment of this reason code is up to that filing
+               system: for example, a keyboard device might signal
+               EOF only when Ctrl-D is read, a null device might
+               always signal EOF, and a VDU-output-style device might
+               never signal EOF.
 
                => (only the common fields above)
-               <= parm->arg.EOF_Has_Been_Reached (R2) = Yes if the
-                                sequential pointer is at or beyond the
-                                file's extent, No otherwise
+               <= parm->arg.EOF_Has_Been_Reached (R2) = -1 (all bits
+                                set) if the sequential pointer is
+                                equal to the file's current extent, or
+                                0 otherwise - not a plain YesNoAnswer
+                                0/1 value
+                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12258
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_FlushFileBuffer:
             /* Flush any buffered output for this file to permanent
-               storage; do nothing if there is nothing buffered.
+               storage. Only needed if this filing system does its
+               own buffering on top of whatever FileSwitch already
+               provides - for example read-ahead or write-behind
+               caching - and only called at all if this filing system
+               set bit 27 of its own filing system information word
+               when it registered itself.
 
                => (only the common fields above)
-               <= (nothing)
+               <= parm->arg.info (R2-R3) = the file's load and
+                                execute address (an Information_Fields
+                                load_exec pair, see h.veneers), or 0/0
+                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12264
              */
             err = err_DoesNothing;
             break;
@@ -106,34 +162,53 @@ _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
         case FSEntry_Args_Reason_EnsureFileSize:
             /* Guarantee that at least the given amount of storage
                could be allocated to the file without failing,
-               without actually changing the file's extent; a
-               pre-flight check before a large write.
+               without actually changing the file's extent or zeroing
+               the extra space; a pre-flight check before a large
+               write. Every filing system must support this reason
+               code.
 
                => parm->arg.allocation_size-> storage required, in
                                 bytes (R2)
+               <= parm->arg.allocation_size (R2) = storage actually
+                                ensured, in bytes
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12269
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_WriteZerosToFile:
-            /* Write zero bytes into part of the file, extending it
-               if required.
+            /* Write zero bytes into part of the file. Needed only
+               for buffered files; the handle is guaranteed not to be
+               a directory, and to have had write access granted at
+               the time of the open.
 
                => parm->arg.write_zeros.start-> byte offset to start
-                                writing zeros at (R2)
+                                writing zeros at, a multiple of the
+                                buffer size (R2)
                   parm->arg.write_zeros.number-> number of zero bytes
-                                to write (R3)
+                                to write, a multiple of the buffer
+                                size (R3)
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12273
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Args_Reason_ReadFileDateStamp:
-            /* Read the file's datestamp.
+            /* Read the file's datestamp. Every filing system must
+               support this reason code.
 
                => (only the common fields above)
-               <= parm->arg.info (R2-R3) = the file's datestamp, as
-                                an Information_Fields date_type pair
-                                (see h.veneers)
+               <= parm->arg.info.load_exec.load_address (R2) = load
+                                address of the file, whose bottom byte
+                                holds the most significant byte of the
+                                5-byte datestamp, or 0 if this handle
+                                cannot be datestamped
+                  parm->arg.info.load_exec.execute_address (R3) =
+                                execution address of the file, holding
+                                the bottom four bytes of the 5-byte
+                                datestamp, or 0 if this handle cannot
+                                be datestamped
+                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12277
              */
             err = err_DoesNothing;
             break;

@@ -19,6 +19,7 @@
 
 #ifndef __DUMMYFSINTERFACE_H
 #define __DUMMYFSINTERFACE_H
+
 extern void veneer_fsentry_open(void);
 extern void veneer_fsentry_getbytes(void);
 extern void veneer_fsentry_putbytes(void);
@@ -27,4 +28,5 @@ extern void veneer_fsentry_close(void);
 extern void veneer_fsentry_file(void);
 extern void veneer_fsentry_func(void);
 extern void veneer_fsentry_gbpb(void);
+
 #endif

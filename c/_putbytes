@@ -20,32 +20,48 @@
                 two ways, matching the mode chosen when the file was
                 opened by fsentry_open (c._open).
 
-                Unbuffered (single byte) transfer:
+                Unbuffered (single byte) transfer, called once per
+                byte written by the application:
 
-                => parm->byte_to_put-> the byte to write, low 8 bits
-                                (R0)
+                => parm->byte_to_put-> the byte to write, top 24 bits
+                                zero (R0)
                    parm->handle-> the FileSystemHandle from
                                 fsentry_open (R1)
-                <= (nothing; the byte is written at the file's current
-                   sequential pointer, which advances by one,
-                   extending the file if the pointer was at its end)
+                <= (nothing; write the byte at the file's current
+                   sequential pointer and advance the pointer by one.
+                   If the pointer was equal to the file's extent, the
+                   file must be extended by at least one byte to hold
+                   the new data - though it is more efficient to grow
+                   the allocation in larger chunks, 256 bytes or 1K
+                   are typical, than one byte at a time)
+                   See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12229
 
-                Buffered transfer:
+                Buffered transfer, requested either because a client
+                wrote a whole number of buffer-sized blocks directly,
+                or because FileSwitch is flushing one of its own
+                modified buffers:
 
                 => parm->handle-> the FileSystemHandle from
                                 fsentry_open (R1)
-                   parm->source_start-> buffer to write from (R2)
-                   parm->bytes_to_write-> number of bytes to write
-                                (R3)
+                   parm->source_start-> buffer to write from, not
+                                necessarily word-aligned (R2)
+                   parm->bytes_to_write-> number of bytes to write, a
+                                multiple of the buffer size given from
+                                fsentry_open (R3)
                    parm->file_offset_to_put_data_to-> file offset to
-                                write to (R4)
-                <= (nothing; extend the file if the write goes past
-                   its current extent)
+                                write to, a multiple of the buffer
+                                size; the final byte written is
+                                guaranteed to lie within the file's
+                                current extent, so a buffered write
+                                never needs to extend the file (R4)
+                <= (nothing)
+                   See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12224
 
-                Either way, fail with a "disc full" style error
-                (matching the pattern used by other filing systems,
-                see doc.FSinC and prminxml/fsinc.xml) if there is not
-                enough free space to extend the file as required.
+                For an unbuffered write that must extend the file,
+                fail with a "disc full" style error (matching the
+                pattern used by other filing systems, see doc.FSinC
+                and prminxml/fsinc.xml) if there is not enough free
+                space to do so.
  Parameters:    parm-> the parameters (see h.fsentries for details)
  Returns:       pointer to error, or NULL if successful
  ******************************************************************/

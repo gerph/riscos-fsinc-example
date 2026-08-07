@@ -24,10 +24,4 @@
 #define Service_FSRedeclare             0x40
 #define ASpace                          ' '
 
-/* FSEntry_File_Reason_LoadFile (see c._file): the value FileSwitch
-   uses in parm->extras.location.start (R2) to mean "load the file at
-   its own stamped load address" rather than at a caller-given
-   address. */
-#define FSEntry_File_UseStampedAddress  0
-
 #endif

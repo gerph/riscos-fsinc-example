@@ -23,9 +23,17 @@
                                 fsentry_open (c._open) (R1)
                    parm->info-> new load and execute addresses to
                                 stamp on the file, or 0/0 to leave
-                                them unchanged (R2-R3)
+                                them unchanged - this is 0/0 whenever
+                                fsentry_args (c._args) returned 0/0 for
+                                FSEntry_Args_Reason_ReadFileDateStamp
+                                on this handle (R2-R3)
                 <= (nothing; the handle must not be used again after
-                   this call returns successfully)
+                   this call returns successfully. *Close and *Shut
+                   are implemented by FileSwitch itself, which passes
+                   each open handle to this entry point in turn, so a
+                   filing system need not implement "close everything"
+                   as a special case)
+                   See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12285
  Parameters:    parm-> the parameters (see h.fsentries for details)
  Returns:       pointer to error, or NULL if successful
  ******************************************************************/

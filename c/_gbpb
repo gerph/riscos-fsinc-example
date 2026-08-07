@@ -40,39 +40,54 @@ _kernel_oserror *fsentry_gbpb(FSEntry_GBPB_Parameter * parm)
     switch (parm->reason)
     {
         case FSEntry_GBPB_Reason_PutMultipleBytesHere:
-            /* Write multiple bytes at a given file offset.
+            /* Write multiple bytes at a given file offset. If the
+               offset lies beyond the file's current extent, fill the
+               gap with zero bytes before writing the new data,
+               extending the file as necessary.
 
                => parm->sequential_file_pointer-> file offset to
                                 write at (R4)
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12485
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_GBPB_Reason_PutMultipleBytes:
-            /* Write multiple bytes at the file's current sequential
-               pointer, advancing it.
+            /* As FSEntry_GBPB_Reason_PutMultipleBytesHere above, but
+               at the file's current sequential pointer, advancing it,
+               rather than an explicit offset.
 
-               => parm->sequential_file_pointer (R4) is ignored on
+               => parm->sequential_file_pointer (R4) is not given on
                                 entry for this reason code
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12485
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_GBPB_Reason_GetMultipleBytesHere:
-            /* Read multiple bytes from a given file offset.
+            /* Read multiple bytes from a given file offset. If the
+               offset is at or beyond the file's current extent,
+               transfer nothing: do not update the sequential
+               pointer, and do not return an error (FileSwitch derives
+               the C flag it reports to its own caller from whether
+               parm->number is left non-zero, so no explicit EOF
+               signalling is needed here).
 
                => parm->sequential_file_pointer-> file offset to
                                 read from (R4)
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12489
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_GBPB_Reason_GetMultipleBytes:
-            /* Read multiple bytes from the file's current sequential
-               pointer, advancing it.
+            /* As FSEntry_GBPB_Reason_GetMultipleBytesHere above, but
+               at the file's current sequential pointer, advancing it,
+               rather than an explicit offset.
 
-               => parm->sequential_file_pointer (R4) is ignored on
+               => parm->sequential_file_pointer (R4) is not given on
                                 entry for this reason code
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12489
              */
             err = err_DoesNothing;
             break;

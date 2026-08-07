@@ -37,6 +37,9 @@ _kernel_oserror *fsentry_open(FSEntry_Open_Parameter * parm)
     {
         case FSEntry_Open_Reason_Update:
             /* Open an existing file for reading and writing.
+               FileSwitch has already checked that the object exists
+               and is not a directory before making this call. Must
+               not alter the object's datestamp.
 
                => (only the common fields above)
                <= parm->open_result.information_word (R0) = write/
@@ -45,42 +48,62 @@ _kernel_oserror *fsentry_open(FSEntry_Open_Parameter * parm)
                   parm->open_result.handle (R1) = a non-zero
                                 FileSystemHandle you choose to
                                 identify this open file on later calls
-                  parm->open_result.buffer_size (R2) = buffer size for
-                                buffered transfer (a power of two,
-                                64-1024), or 0 to use unbuffered
-                                fsentry_getbytes/fsentry_putbytes
-                                (c._getbytes, c._putbytes)
+                                (0 means the open failed only because
+                                memory could not be allocated - this
+                                is not an error: return NULL)
+                  parm->open_result.buffer_size (R2) = the file's
+                                natural block size, used by FileSwitch
+                                to size and align its transfers; a
+                                power of two from 64 to 1024 requests
+                                buffered transfer, or 0 to use
+                                unbuffered fsentry_getbytes/
+                                fsentry_putbytes (c._getbytes,
+                                c._putbytes)
                   parm->open_result.file_extent (R3) = current file
                                 extent (only if buffer_size non-zero)
                   parm->open_result.allocated_space (R4) = space
-                                allocated to the file (only if
-                                buffer_size non-zero)
-
-               Fail if the object does not exist or is a directory.
+                                allocated to the file, a multiple of
+                                buffer_size (only if buffer_size
+                                non-zero)
+                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12210
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Open_Reason_OpenRead:
-            /* Open an existing file for reading only.
+            /* Open an existing file for reading only. FileSwitch has
+               already checked that the object exists, unless this
+               filing system set bit 28 of its own filing system
+               information word to override that check. Must not
+               alter the object's datestamp. Opening a directory for
+               reading is valid - some programs use it purely to test
+               whether an object exists - and no bytes will actually
+               be requested from it.
 
                => (only the common fields above)
                <= (as FSEntry_Open_Reason_Update above, but with the
                   write-permitted bit clear in
                   parm->open_result.information_word)
-
-               Fail if the object does not exist.
+                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12210
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_Open_Reason_CreateUpdate:
-            /* Create a new, empty file if it does not already exist,
-               or open the existing file unchanged if it does; either
-               way, open it for reading and writing.
+            /* FileSwitch has already checked that the leafname is
+               not wildcarded, and that the object is not an existing
+               directory. If the file already exists, open it
+               unchanged, for reading and writing. If it does not,
+               create it: return an extent of zero; return an
+               allocated space equal to that of a same-named file if
+               one already existed, or a sensible default that leaves
+               room to grow otherwise; give the new file filetype
+               &FFD (Data), a current datestamp, and sensible access
+               attributes (WR/ is recommended).
 
                => (only the common fields above)
                <= (as FSEntry_Open_Reason_Update above)
+                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12210
              */
             err = err_DoesNothing;
             break;

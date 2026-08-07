@@ -33,43 +33,60 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
     switch (parm->reason)
     {
         case FSEntry_File_Reason_LoadFile:
-            /* Read a file into memory.
+            /* Read a file into memory. FileSwitch has already called
+               FSEntry_File_Reason_ReadCatalogueInformation and
+               resolved the "load at the file's own stamped address"
+               case itself, so the address given here is always a
+               concrete address - there is no sentinel value to check
+               for.
 
-               => parm->name-> the filename (R1)
+               => parm->name-> the filename, possibly wildcarded (R1)
                   parm->extras.location.start->
-                                the address to load the file at, or
-                                FSEntry_File_UseStampedAddress (see
-                                h.consts) to load it at the address it
-                                was itself stamped with.
+                                the address to load the file at (R2)
                <= parm->info (R2-R3) = the load/execute addresses the
                                 file was stamped with
                   parm->extras.info.length (R4) = the file's length
                   parm->extras.info.attributes (R5) = the file's
                                 attributes
                   parm->special_field (R6) = pointer to the object's
-                                printable leafname
+                                printable, non-wildcarded leafname
+                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12335
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_File_Reason_CreateFile:
-            /* Create a new, empty file of a given length.
+            /* Create a new file of a given length, without
+               transferring any data into it. R4 and R5 are used only
+               to calculate the length to preallocate - unlike
+               FSEntry_File_Reason_SaveFile, no data is copied from
+               that memory range. If an object of this name already
+               exists and is not locked, discard it first; the new
+               file should have the same access attributes as the one
+               it replaced, or a sensible default if there was none.
 
                => parm->name-> the filename (R1)
                   parm->info-> load/execute addresses to stamp on the
                                 new file (R2-R3)
-                  parm->extras-> second word only (R5) gives the
-                                length to preallocate;
-                                parm->extras.info.length (R4) is
-                                unused for this reason code
+                  parm->extras.location.start, .end->
+                                a memory range whose size (end - start)
+                                gives the length to preallocate; no
+                                data is read from it (R4-R5)
                <= parm->special_field (R6) = pointer to the object's
                                 printable leafname
+                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12319
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_File_Reason_SaveFile:
-            /* Save a block of memory as a new file.
+            /* Save a block of memory as a new file. FileSwitch has
+               already validated the memory block and ensured the
+               leafname is not wildcarded. If an object of this name
+               already exists and is not locked, discard it first; the
+               new file should have the same access attributes as the
+               one it replaced, or a sensible default if there was
+               none.
 
                => parm->name-> the filename (R1)
                   parm->info-> load/execute addresses to stamp on the
@@ -78,51 +95,69 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                                 the memory block to save (R4-R5)
                <= parm->special_field (R6) = pointer to the object's
                                 printable leafname
+                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12290
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_File_Reason_WriteCatalogueInformation:
-            /* Set a file's load address, execute address, length
-               and attributes together.
+            /* Set a file's load address and execute address, and its
+               attributes, together. There is no length field for
+               this reason code - length can only be changed via
+               FSEntry_Args_Reason_WriteFileExtent (c._args) on an
+               open file, or implicitly by
+               FSEntry_File_Reason_CreateFile above. If the object is
+               a directory, either write the information (FileCore-
+               based filing systems do) or return an error - do not
+               return an error if the object simply does not exist.
 
                => parm->name-> the filename (R1)
                   parm->info-> new load/execute addresses (R2-R3)
-                  parm->extras.info.length-> new length (R4)
                   parm->extras.info.attributes-> new attributes (R5)
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12294
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_File_Reason_WriteLoadAddress:
             /* Set a file's load address, leaving its execute
-               address, length and attributes unchanged.
+               address, length and attributes unchanged. If the
+               object is a directory, either write the information or
+               return an error. Do not return an error if the object
+               does not exist.
 
                => parm->name-> the filename (R1)
                   parm->info.load_exec.load_address->
                                 new load address (R2)
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12299
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_File_Reason_WriteExecutionAddress:
             /* Set a file's execute address, leaving its load
-               address, length and attributes unchanged.
+               address, length and attributes unchanged. If the
+               object is a directory, either write the information or
+               return an error. Do not return an error if the object
+               does not exist.
 
                => parm->name-> the filename (R1)
                   parm->info.load_exec.execute_address->
                                 new execute address (R3)
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12304
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_File_Reason_WriteAttributes:
             /* Set a file's access attributes, leaving its load
-               address, execute address and length unchanged.
+               address, execute address and length unchanged. Do not
+               return an error if the object does not exist.
 
                => parm->name-> the filename (R1)
                   parm->extras.info.attributes->
                                 new attributes (R5)
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12308
              */
             err = err_DoesNothing;
             break;
@@ -133,25 +168,37 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                in; only object type, load/execute addresses and
                attributes are required. Provided separately because
                computing a length can be expensive for some filing
-               systems, and many callers do not need it.
+               systems, and many callers do not need it. Only issued
+               by *Copy under RISC OS 2, and only if this filing
+               system set bit 26 of its information word at
+               initialisation; otherwise FileSwitch calls
+               FSEntry_File_Reason_ReadCatalogueInformation instead and
+               ignores the length it returns. Do not return an error
+               if the object does not exist.
 
                => parm->name-> the filename (R1)
                <= (as FSEntry_File_Reason_ReadCatalogueInformation,
                   excluding parm->extras.info.length)
+                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12327
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_File_Reason_ReadCatalogueInformation:
             /* Read a file's full catalogue entry, including its
-               length.
+               length. Return an error only if the pathname names an
+               unknown drive or media, or an unknown server/subsystem
+               in the special field; return object type 0 (not an
+               error) if the containing directory exists but no
+               object in it matches the leafname, or the directory
+               itself does not exist.
 
                => parm->name-> the filename (R1)
-               <= object type (R0) = 0 not found, 1 file, 2 directory,
-                                3 both a file and a directory
+               <= object type (R0) = 0 not found, 1 file, 2 directory
                   parm->info (R2-R3) = load/execute addresses
                   parm->extras.info.length (R4) = length
                   parm->extras.info.attributes (R5) = attributes
+                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12311
              */
             err = err_DoesNothing;
             break;
@@ -159,7 +206,11 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
         case FSEntry_File_Reason_DeleteObject:
             /* Delete a file or an empty directory; fail with an
                appropriate error rather than deleting the contents
-               of a non-empty directory.
+               of a non-empty directory, or if the object is locked
+               against deletion. Do not return an error if the object
+               simply does not exist. FileSwitch has already ensured
+               the leafname is not wildcarded, and no data is
+               transferred for this call.
 
                => parm->name-> the filename (R1)
                <= object type (R0) = the type of the object deleted
@@ -170,19 +221,32 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                                 immediately before deletion
                   parm->extras.info.attributes (R5) = the attributes
                                 it had immediately before deletion
+                  See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12315
              */
             err = err_DoesNothing;
             break;
 
         case FSEntry_File_Reason_CreateDirectory:
-            /* Create a new, empty directory.
+            /* Create a new, empty directory. FileSwitch has already
+               ensured the leafname is not wildcarded. If the
+               directory already exists, either leave it unmodified,
+               or attempt to rename it out of the way without
+               returning an error if that rename attempt fails. If
+               directories on this filing system cannot hold separate
+               load/execute addresses, simply ignore parm->info rather
+               than returning an error.
 
                => parm->name-> the directory's pathname (R1)
+                  parm->info-> load/execute addresses to give the
+                                new directory; ignored under RISC OS 2
+                                (R2-R3)
                   parm->extras.info.length->
                                 a hint for the number of entries the
-                                directory should be sized for (R4);
-                                ignore this if your filing system has
-                                no fixed-size directories
+                                directory should be sized for, or 0
+                                for a sensible default; ignore this if
+                                your filing system has no fixed-size
+                                directories (R4)
+               See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12323
              */
             err = err_DoesNothing;
             break;
