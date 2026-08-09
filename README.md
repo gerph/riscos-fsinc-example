@@ -37,11 +37,9 @@ tooling:
   calling convention into the C parameter structures used by `h/fsentries`.
 * `cmhg/` - the CMunge module header (`modhead`), describing the module's
   SWIs, commands and services to the build tools.
-* `doc/FSinC` - the original "Making a Filing System for RISC OS in C" guide,
-  describing the files supplied and the FileSwitch interface in recipe form.
-* `prminxml/fsinc.xml` - a PRM-in-XML reference document covering the same
-  ground as `doc/FSinC`, cross-linked to the relevant sections of the RISC OS
-  Programmer's Reference Manual chapters on writing a filing system
+* `prminxml/fsinc.xml` - the "Making a Filing System for RISC OS in C" guide,
+  written in PRM-in-XML and cross-linked to the relevant sections of the RISC
+  OS Programmer's Reference Manual chapters on writing a filing system
   ([writefs.html](http://www.riscos.com/support/developers/prm/writefs.html),
   [writefsnew.html](http://www.riscos.com/support/developers/prm/writefsnew.html)).
   Build it to HTML with `riscos-prminxml -f html5+xml -O output prminxml/fsinc.xml`.
@@ -56,11 +54,15 @@ riscos-amu -f Makefile,fe1
 
 CI builds the module automatically on every push, using the same environment
 via `build.riscos.online`; see `.github/workflows/ci.yml` for the exact steps.
+CI also renders `prminxml/fsinc.xml` to HTML and packages it as a
+`Documentation-<version>.zip` archive, using the same versioning as the module
+build. Both archives are uploaded as workflow artifacts on every push, and are
+attached to the GitHub release created when a `v*` tag is pushed.
 
 ## Using this template
 
-To build a real filing system from this template, work through `doc/FSinC`
-and `prminxml/fsinc.xml` alongside the `c/_*` sources: each entry point's
+To build a real filing system from this template, work through
+`prminxml/fsinc.xml` alongside the `c/_*` sources: each entry point's
 `switch` statement has one case per FileSwitch reason code, documented with
 the register/field usage FileSwitch expects on entry and exit, and a `See:`
 link to the matching section of the original PRM chapter. Replace the

@@ -59,8 +59,8 @@
 
                 For an unbuffered write that must extend the file,
                 fail with a "disc full" style error (matching the
-                pattern used by other filing systems, see doc.FSinC
-                and prminxml/fsinc.xml) if there is not enough free
+                pattern used by other filing systems, see
+                prminxml/fsinc.xml) if there is not enough free
                 space to do so.
  Parameters:    parm-> the parameters (see h.fsentries for details)
  Returns:       pointer to error, or NULL if successful

@@ -84,9 +84,44 @@ jobs:
         # The artifact that is downloadable from the Actions is actually a zip of the artifacts
         # that we supply. So it will be a regular Zip file containing a RISC OS Zip file.
 
+  build-docs:
+    # Renders the PRM-in-XML documentation (prminxml/fsinc.xml) to HTML, and
+    # packages it as a downloadable archive.
+    runs-on: ubuntu-latest
+
+    outputs:
+      leafname: ${{ steps.docsversion.outputs.leafname }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build PRM-in-XML documentation
+        uses: gerph/riscos-prminxml-action@v1
+        with:
+          files: prminxml/fsinc.xml
+          output: output
+          style: prm
+
+      - name: Package documentation
+        id: docsversion
+        run: |
+          if [[ -f VersionNum ]] ; then
+              version=$(sed '/MajorVersion / ! d ; s/.*MajorVersion *"\(.*\)"/\1/' VersionNum)
+          else
+              version=$(git rev-parse --short HEAD)
+          fi
+          leafname="Documentation-$version.zip"
+          cd output && zip -q9r "../$leafname" *
+          echo "leafname=$leafname" >> $GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Documentation
+          path: ${{ steps.docsversion.outputs.leafname }}
+
   # The release only triggers when the thing that was pushed was a tag starting with 'v'
   release:
-    needs: build-riscos
+    needs: [build-riscos, build-docs]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
@@ -97,11 +132,16 @@ jobs:
         with:
           name: RISCOS-build
 
+      - name: Download built documentation
+        uses: actions/download-artifact@v8
+        with:
+          name: Documentation
+
       - name: Create Release
         id: create_release
         uses: ncipollo/release-action@v1
         with:
           prerelease: false
           draft: true
-          artifacts: "${{ needs.build-riscos.outputs.leafname }}"
+          artifacts: "${{ needs.build-riscos.outputs.leafname }},${{ needs.build-docs.outputs.leafname }}"
           artifactContentType: application/zip
