@@ -5,7 +5,25 @@
 #
 # Program specific options:
 #
+# Two variants of the module can be built from the same sources:
+#
+#   riscos-amu -f Makefile,fe1 ram          builds rm32.DummyFS, the
+#                                           production module, with the
+#                                           provider in c.provider
+#   riscos-amu -f Makefile,fe1 ram TEST=1   builds rm32.DummyFSTest, the
+#                                           test module, with the in-memory
+#                                           test provider in c.testprov
+#
+# The test module is what tests.TestFS exercises; see the 'test' target
+# below. The provider is the only source that differs between the two.
+#
+ifeq (${TEST},1)
+COMPONENT  = DummyFSTest
+PROVIDER   = o.testprov
+else
 COMPONENT  = DummyFS
+PROVIDER   = o.provider
+endif
 
 # Specifies additional targets for startup
 INITTARGET = inittarget
@@ -43,6 +61,8 @@ OBJS       = o._args \
              o._getbytes \
              o._open \
              o._putbytes \
+             o.fsdata \
+             ${PROVIDER} \
              o.modhead \
              o.interface \
              o.module \

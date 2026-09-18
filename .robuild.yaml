@@ -28,16 +28,19 @@ jobs:
 
       - echo
       - echo *** Build the component ***
-      - amu -f Makefile ram  
+      - amu -f Makefile ram
 
-      # Don't RMLoad as we don't support the FileSystem add interfaces in Pyromaniac.
-      #- echo
-      #- echo *** Load the module ***
-      #- RMLoad rm32.DummyFS
+      - echo
+      - echo *** Build the test variant of the component ***
+      - amu -f Makefile ram TEST=1
 
-      #- echo
-      #- echo *** Kill the module ***
-      #- RMKill DummyFS
+      # The tests load both variants of the module themselves, drive
+      # FileSwitch at them from BASIC, and exit with an error if any
+      # check fails. Filing system registration is supported by the
+      # build service (Filesystem.register_filesystem is 'allow').
+      - echo
+      - echo *** Run the tests ***
+      - Run tests.TestFS
 
       - echo
       - echo *** SUCCESS ***

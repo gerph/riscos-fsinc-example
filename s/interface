@@ -131,18 +131,34 @@ fsentry_common  ; os_error *fsentry_common( Parameter_Block * )
         ; If returned value indicates an error, then set the overflow and put it back in r0
         MOVNE   r0, r8
 
-        ; Mess about with the flag bits in r8
+        ; Mess about with the flag bits in r8. Where the flags live, and
+        ; how they are written back, depends on whether this is a 26-bit
+        ; or a 32-bit build ({CONFIG} is set by the assembler from the
+        ; -apcs option): in 26-bit mode they are part of the PC and are
+        ; written with TEQP, whilst in 32-bit mode they are in the CPSR
+        ; and are read with MRS and written with MSR. The 26-bit sequence
+        ; must not be used in a 32-bit build, as TEQP would then corrupt
+        ; the processor state.
+      [ {CONFIG} = 26
         MOV     r8, pc
+      |
+        MRS     r8, CPSR
+      ]
         BIC     r8, r8, #C_bit + V_bit
         ORRNE   r8, r8, #V_bit          ; V = err != 0
         TST     r1, r1                  ; C = r1 == 0
         ORREQ   r8, r8, #C_bit
 
-        ; Move the flag bits into psr
+        ; Move the flag bits into the PSR
+      [ {CONFIG} = 26
         TEQP    r8, #0
+      |
+        MSR     CPSR_f, r8
+      ]
 
         LDMFD   sp!, {r8}
 
+        ; The flags set above are preserved by MOV pc, lr in both configurations
         MOV     pc, lr
 
 fsentry_branchtable

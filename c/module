@@ -63,9 +63,24 @@ _kernel_oserror *dummyfs_swi(int swi_number, _kernel_swi_regs * r, void *private
                 with atexit() by dummyfs_initialise below, and called
                 by the C library as the module dies, after the
                 module's SWI/service/command veneers have already
-                been disconnected. Removes the filing system from
-                FileSwitch, and should also free any memory or close
-                any connections the filing system is still holding.
+                been disconnected.
+
+                The order of the shutdown matters:
+
+                1. Remove the filing system from FileSwitch. As part
+                   of this, FileSwitch calls fsentry_close (c._close)
+                   for every file still open on the filing system, so
+                   the volume must still be mounted at this point for
+                   those closes to complete normally. The error from
+                   the removal is deliberately ignored: a module must
+                   never fail to finalise because FileSwitch itself
+                   has been reinitialised.
+                2. Release any open-file state that the closes did not
+                   reach (for example, if the removal failed because
+                   FileSwitch was absent). Every entry in your
+                   open-file table should be freed here.
+                3. Unmount the volume, which also closes the provider
+                   and so releases the medium.
 
                 Close your filing system down here and free up all
                 your memory NOW. If you do not then all your filing
@@ -78,10 +93,18 @@ static void dummyfs_finalise(void)
 {
     _kernel_swi_regs r;
 
+    /* 1. Remove from FileSwitch; FileSwitch closes our open files */
     r.r[0] = FSControl_RemoveFilingSystem;
     r.r[1] = (int) FilingSystemName;
 
     _kernel_swi(XOS_Bit | OS_FSControl, &r, &r);
+
+    /*
+       2. Free every remaining entry in your open-file table here.
+     */
+
+    /* 3. Unmount the volume and release the medium */
+    fsdata_unmount();
 }
 
 /*******************************************************************
@@ -140,10 +163,21 @@ static _kernel_oserror *declare_dummyfs(void *private_word)
                 for dummyfs_finalise above to run when the module
                 dies.
 
-                Place your filing system's initialisation where the
-                comment below says to. If an error occurs there, you
-                can skip the 'declaring yourself to FileSwitch' bit
-                by returning the error directly.
+                The filing system's own start-up is to attach to the
+                medium through the provider layer (provider_open,
+                h.provider) and, if a medium is present, to mount it
+                (fsdata_mount, h.fsdata). The absence of a medium is
+                not an initialisation failure: the module still
+                declares itself to FileSwitch, in the "no medium"
+                state, and each entry point reports err_NoMedium
+                until a medium is mounted. Only a genuine failure
+                (for example, running out of memory) is returned as
+                an error, which stops the module loading.
+
+                Place any further initialisation where the comment
+                below says to. If an error occurs there, you can skip
+                the 'declaring yourself to FileSwitch' bit by
+                returning the error directly.
 
                 => cmd_tail-> the command line the module was started
                                 with, unused by DummyFS
@@ -160,6 +194,7 @@ _kernel_oserror *dummyfs_initialise(const char *cmd_tail, int podule_base,
                                     void *private_word)
 {
     _kernel_oserror *err;
+    provider_context *ctx;
 
     /*
        These keep the compiler quiet.
@@ -168,11 +203,31 @@ _kernel_oserror *dummyfs_initialise(const char *cmd_tail, int podule_base,
     podule_base = podule_base;
 
     /*
-       Place your filing system's initialisation here. If an error occurs then
-       you can skip the 'declaring yourself to FileSwitch' bit.
+       Attach to the medium, and mount it if it is there. A missing
+       medium (err_NoMedium) leaves the volume absent and is not an
+       error at this point.
+     */
+    err = provider_open(&ctx);
+    if (err == NULL)
+    {
+        err = fsdata_mount(ctx);
+    }
+    if (err != NULL && err->errnum != err_NoMedium->errnum)
+    {
+        return err;
+    }
+
+    /*
+       Place the rest of your filing system's initialisation here. If an
+       error occurs then you can skip the 'declaring yourself to
+       FileSwitch' bit, but unmount the volume first.
      */
 
     err = declare_dummyfs(private_word);
+    if (err != NULL)
+    {
+        fsdata_unmount();
+    }
 
     if (!err)
     {
@@ -217,7 +272,15 @@ void dummyfs_service(int service_number, _kernel_swi_regs * r, void *private_wor
             break;
 
             /*
-               Handle other service calls here
+               Handle other service calls here. A filing system whose
+               medium can be removed while the module is running should
+               respond to whatever announces that removal (a service
+               call from the device's driver, or a callback from the
+               provider) by calling fsdata_unmount(): from then on every
+               FileSwitch call reports err_NoMedium, and each remaining
+               open handle is released, without error, when FileSwitch
+               closes it. When a medium arrives, call provider_open and
+               fsdata_mount again, exactly as dummyfs_initialise does.
              */
     }
 }

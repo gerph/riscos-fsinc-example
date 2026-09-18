@@ -2,7 +2,8 @@
  * File:        consts
  * Purpose:     DummyFS's own constants: the values that must be
  *              changed to turn this template into a real filing
- *              system (FilingSystemName, Information_Word), and the
+ *              system (FilingSystemName, FilingSystemNumber and the
+ *              other parts of Information_Word), and the
  *              sentinel/fixed values used when talking to FileSwitch
  *              and OS_FSControl from c.module and the fsentry_*
  *              functions (c._open, c._getbytes, c._putbytes,
@@ -15,13 +16,89 @@
 #define __DUMMYFSCONSTS_H
 
 #define My_Command_Parameter_Buffer_Len 256
+
+/*
+   The name FileSwitch knows this filing system by. It is the name used
+   in pathnames (DummyFS:$.file), by *DummyFS, and when the filing
+   system is removed again. Change it to the name of your own filing
+   system, and rename the *command in cmhg.modhead to match.
+ */
 #define FilingSystemName                "DummyFS"
+
+/*
+   The filing system number, in bits 0-7 of the information word. This
+   value, like the SWI chunk and error base in cmhg.modhead, is an
+   EXAMPLE ONLY: it is not allocated to this template. Before a filing
+   system built from this template is released, obtain your own
+   allocation (see prminxml/fsinc.xml, "Allocations") and put it here.
+   FileSwitch rejects a registration whose number is already in use, so
+   a filing system that reuses the number of a filing system already
+   present on the machine cannot be loaded alongside it.
+ */
+#define FilingSystemNumber              33
+
+/*
+   The maximum number of files that may be open on this filing system
+   at once, in bits 8-15 of the information word. 0 means there is no
+   definite limit.
+ */
+#define MaxOpenFiles                    0
+
+/*
+   Individual bits of the filing system information word (word 8 of
+   the block passed to OS_FSControl 12). See "Registering the module
+   with FileSwitch" in prminxml/fsinc.xml for their meaning.
+ */
+#define InfoWord_SpecialFields          (1u << 31)  /* special fields are supported */
+#define InfoWord_Interactive            (1u << 30)  /* streams are interactive */
+#define InfoWord_NullLengthNames        (1u << 29)  /* null-length filenames are valid */
+#define InfoWord_OpenNonExistent        (1u << 28)  /* call FSEntry_Open even if the object does not exist */
+#define InfoWord_FlushCallsArgs         (1u << 27)  /* call FSEntry_Args 6 (flush) */
+#define InfoWord_SupportsFile9          (1u << 26)  /* FSEntry_File 9 (read catalogue, no length) */
+#define InfoWord_SupportsFunc20         (1u << 25)  /* FSEntry_Func 20 (*FileInfo output) */
+#define InfoWord_ImageFSExtensions      (1u << 23)  /* image filing system extensions supported */
+#define InfoWord_PassAmpersandPercent   (1u << 22)  /* pass & and % in paths when appropriate */
+#define InfoWord_NoDirectoryStore       (1u << 21)  /* FileSwitch need not store directories */
+#define InfoWord_LoadViaOpen            (1u << 20)  /* use Open/GetBytes/Close rather than FSEntry_File 255 */
+#define InfoWord_SaveViaOpen            (1u << 19)  /* use Open/PutBytes/Close rather than FSEntry_File 0 */
+#define InfoWord_AccessViaFunc9         (1u << 18)  /* use FSEntry_Func 9 for *Access rather than FSEntry_File */
+#define InfoWord_ExtraWordPresent       (1u << 17)  /* an extra information word follows the block */
+#define InfoWord_ReadOnly               (1u << 16)  /* the filing system is read-only */
+
+/*
+   The information word registered with FileSwitch. A read-only filing
+   system (one that presents a medium it never writes to) should add
+   InfoWord_ReadOnly here, and return err_WriteProtected from every
+   entry point reason code that would modify the medium - see the
+   read-only reason code matrix in prminxml/fsinc.xml.
+ */
+#define Information_Word                (InfoWord_SupportsFile9 | \
+                                         (MaxOpenFiles << 8) | \
+                                         FilingSystemNumber)
+
 #define FSControl_AddFilingSystem       12
 #define FSControl_SelectFilingSystem    14
 #define FSControl_RemoveFilingSystem    16
 #define Information_Block_Size          11
-#define Information_Word                0x04000021
 #define Service_FSRedeclare             0x40
 #define ASpace                          ' '
+
+/*
+   RISC OS object types, as returned by FSEntry_File and in directory
+   enumeration records.
+ */
+#define ObjectType_NotFound             0
+#define ObjectType_File                 1
+#define ObjectType_Directory            2
+
+/*
+   RISC OS object attribute bits, as returned by FSEntry_File and in
+   directory enumeration records.
+ */
+#define Attribute_OwnerRead             (1u << 0)
+#define Attribute_OwnerWrite            (1u << 1)
+#define Attribute_Locked                (1u << 3)
+#define Attribute_PublicRead            (1u << 4)
+#define Attribute_PublicWrite           (1u << 5)
 
 #endif

@@ -68,6 +68,14 @@ behaviour lives, and are the files you fill in.</p></item>
 chunk, service calls, star commands and error blocks, and a small amount
 of C module-lifecycle code (initialisation, finalisation, service call
 and star command handling, and, if you need any, SWI handling).</p></item>
+<item><p>Two further layers beneath the entry points, described in
+<reference type="subsection" name="Structuring a filing system"/>: a data
+layer (<filename>c.fsdata</filename>) that understands the structure of
+the medium, and a provider layer (<filename>c.provider</filename>, or
+<filename>c.testprov</filename> in the test build) that reads it. The
+entry-point files call down into the data layer, and the data layer calls
+down into the provider; neither of the lower layers knows anything about
+FileSwitch.</p></item>
 </list>
 </p>
 <p>
@@ -78,7 +86,12 @@ implement none of them: each case returns
 to build from: it declares itself to FileSwitch, can be selected with
 <reference type="command" name="DummyFS"/>, and fails cleanly and
 predictably on every actual file operation until you replace the relevant
-cases with real behaviour.
+cases with real behaviour. The production build has no medium (its
+provider reports none), so as supplied it answers every FileSwitch call
+with <reference type="error" name="NoMedium"/>; the test build, which
+carries a medium in memory, answers with
+<reference type="error" name="DoesNothing"/> instead, showing that the
+call reached the entry point.
 </p>
 <p>
 Because a filing system module can be called for any object on any open
@@ -138,18 +151,37 @@ The information word (word 8) is a bitfield:
 </p>
 <p>
 <bitfield-table>
- <bit number="0-4" name="Filing system number">a small number, unique among filing systems currently active, used internally by FileSwitch and in some file handle encodings</bit>
- <bit number="5-15" name="Maximum open files">the largest number of files this filing system is prepared to have open simultaneously</bit>
- <bit number="26" name="Case sensitivity" state="clear">filenames are matched case-insensitively</bit>
- <bit number="26" name="Case sensitivity" state="set">filenames are matched case-sensitively</bit>
- <bit number="27-31" state="reserved">reserved, must be zero</bit>
+ <bit number="0-7" name="Filing system number">the filing system's allocated number, unique among filing systems present on the machine; see <reference type="subsubsection" name="Allocations"/></bit>
+ <bit number="8-15" name="Maximum open files">the largest number of files this filing system can easily have open at once, or 0 if there is no definite limit; used by system extensions such as the Font Manager to decide whether files may be left open</bit>
+ <bit number="16" name="Read-only" state="set">the filing system is read-only; see <reference type="subsubsection" name="Read-only filing systems"/></bit>
+ <bit number="17" name="Extra word" state="set">an extra information word follows the block, at word 11</bit>
+ <bit number="18" name="Access via Func 9" state="set">use <reference type="entry" name="FSEntry_Func" reason="9"/> for *Access, in preference to the <reference type="entry" name="FSEntry_File"/> attribute-writing reason codes</bit>
+ <bit number="19" name="Save via Open" state="set">use Open/PutBytes/Close rather than <reference type="entry" name="FSEntry_File" reason="0"/></bit>
+ <bit number="20" name="Load via Open" state="set">use Open/GetBytes/Close rather than <reference type="entry" name="FSEntry_File" reason="255"/></bit>
+ <bit number="21" name="No directory store" state="set">FileSwitch need not store directories for this filing system</bit>
+ <bit number="22" name="Pass &amp; and %" state="set">pass &amp; and % in paths when appropriate</bit>
+ <bit number="23" name="Image extensions" state="set">the filing system supports the image filing system extensions</bit>
+ <bit number="24" state="reserved">reserved, must be zero</bit>
+ <bit number="25" name="Func 20" state="set">the filing system implements <reference type="entry" name="FSEntry_Func" reason="20"/></bit>
+ <bit number="26" name="File 9" state="set">the filing system implements <reference type="entry" name="FSEntry_File" reason="9"/></bit>
+ <bit number="27" name="Flush" state="set">call <reference type="entry" name="FSEntry_Args" reason="6"/> when flushing</bit>
+ <bit number="28" name="Open non-existent" state="set">call <reference type="entry" name="FSEntry_Open"/> whether or not the object exists</bit>
+ <bit number="29" name="Null names" state="set">null-length filenames are valid</bit>
+ <bit number="30" name="Interactive" state="set">streams are interactive, so prompting for input is appropriate</bit>
+ <bit number="31" name="Special fields" state="set">special fields are supported</bit>
 </bitfield-table>
 </p>
 <p>
-The template's supplied information word is a starting point only: you
-must choose a filing system number that is not already in use (FileSwitch
-rejects a duplicate), and a maximum open file count appropriate to your
-filing system's resources.
+Bits 16-23 are ignored by RISC OS 2. The template builds the word in
+<filename>h.consts</filename> from named parts
+(<userinput>FilingSystemNumber</userinput>,
+<userinput>MaxOpenFiles</userinput> and the
+<userinput>InfoWord_*</userinput> bits) so that each can be changed
+independently; the supplied filing system number is an example only, and
+must be replaced with your own allocation (see
+<reference type="subsubsection" name="Allocations"/>) before the filing system
+is released, since FileSwitch rejects a registration whose number is
+already in use.
 </p>
 <p>
 A filing system module must re-register itself whenever
@@ -308,10 +340,17 @@ return <reference type="error" name="DoesNothing"/> (or a more specific
 error such as <reference type="error" name="BadParameters"/> for reason
 codes your filing system will never support) rather than being left to
 fall through unhandled.</p></item>
+<item><p>Replace the provider (<filename>c.provider</filename>) with code that
+reaches your real storage, and fill in the data layer
+(<filename>c.fsdata</filename>) with the code that reads your medium's
+structures; see <reference type="subsection" name="Structuring a filing system"/>.
+Keep the test provider (<filename>c.testprov</filename>) and its image up
+to date with your format, and extend <filename>tests.TestFS</filename> as
+each operation starts to work; see <reference type="subsection" name="Testing"/>.</p></item>
 <item><p>Fill in the module's initialisation, finalisation, service-call and
 star-command handling for anything specific to your filing system, such as
-opening a connection to the medium you are presenting, or offering
-additional star commands.</p></item>
+responding to the arrival or removal of a medium, or offering additional
+star commands.</p></item>
 <item><p>Add any private state your filing system needs - open-file
 tables, cached directory information, connection state and so on - as
 static data. Keep this as small and simple as you reasonably can: every
@@ -325,6 +364,470 @@ recovery.</p></item>
 The assembler veneer, the CMHG/CMunge parameter-passing convention, and
 the C parameter-structure headers should not normally need to change: they
 implement the FileSwitch calling convention itself, which is fixed.
+</p>
+</subsection>
+
+
+<subsection title="Structuring a filing system">
+<p>
+The FileSwitch entry points are only the top of a filing system. Beneath
+them, a filing system has to understand the structure of what is on the
+medium, and beneath that it has to get bytes off the medium at all. The
+template separates these into three layers, and the separation is worth
+keeping as the filing system grows, because each layer changes for a
+different reason: the FileSwitch layer changes only when FileSwitch's
+conventions change (which is to say, almost never); the data layer changes
+when the on-medium format changes; and the provider layer changes when
+the storage the medium lives on changes.
+</p>
+<p>
+<definition-table head-name="Layer" head-extra="Files" head-value="Responsibility">
+ <definition name="FileSwitch layer" extra="s.interface, c._*, c.module">Implements FileSwitch's register conventions, reason codes and error rules, and nothing else. Each entry point validates what FileSwitch gave it, asks the data layer for the object or data concerned, converts the answer into the registers FileSwitch expects, and returns. The open-file table (handles, sequential pointers) also lives here, since handles are a FileSwitch concept.</definition>
+ <definition name="Data layer" extra="h.fsdata, c.fsdata">Understands the structure of the medium: where its root directory is, how directories and their entries are laid out, how names and dates are encoded, where an object's data lies. It presents every object as an <userinput>fsdata_descriptor</userinput>, and converts descriptors to RISC OS catalogue information. It also owns the volume state - whether a medium is mounted at all.</definition>
+ <definition name="Provider layer" extra="h.provider, c.provider, c.testprov">Reads ranges of bytes from the medium, and reports its size. It knows nothing about what the bytes mean. Only one provider is linked into any given module; the template supplies a production skeleton and an in-memory test provider.</definition>
+</definition-table>
+</p>
+<p>
+The rule that makes the split useful is that each layer calls only the
+one below it, and nothing calls upwards: the FileSwitch layer calls
+<userinput>fsdata_*</userinput>, the data layer calls
+<userinput>provider_*</userinput>, and neither of the lower layers includes
+<filename>h.veneers</filename> or knows what a reason code is. A filing
+system built this way can be moved from one kind of storage to another by
+replacing one file, and its format handling can be tested without any
+hardware at all.
+</p>
+
+<subsubsection title="The provider layer">
+<p>
+The provider interface is deliberately small. It is declared in
+<filename>h.provider</filename> as:
+</p>
+<p>
+<extended-example type="c">
+typedef struct provider_context provider_context;   /* opaque */
+typedef unsigned int provider_offset;               /* byte offset on the medium */
+
+_kernel_oserror *provider_open(provider_context **ctx);
+void             provider_close(provider_context *ctx);
+provider_offset  provider_size(provider_context *ctx);
+_kernel_oserror *provider_read(provider_context *ctx,
+                               provider_offset offset,
+                               void *buffer,
+                               unsigned int length);
+</extended-example>
+</p>
+<p>
+<list type="unordered">
+<item><p>The context is opaque: its structure is defined inside the provider's
+own source file, and callers hold only a pointer to it. This is what allows
+the two providers to have entirely different state (a device handle and a
+sector buffer for real storage; a pointer and a length for the in-memory
+image) behind the same interface.</p></item>
+<item><p><userinput>provider_read</userinput> is a checked range read. An
+implementation must reject any range that does not lie entirely within
+the medium, and must fill the whole buffer or return an error - never a
+short transfer. Make the range check in the form
+<userinput>offset &gt; size || length &gt; size - offset</userinput> so
+that it cannot be defeated by the addition wrapping. The data layer relies
+on this: it can pass offsets straight from structures it has read off
+the medium, knowing that a corrupt or malicious value will be refused
+rather than read past the end of the device or of the image.</p></item>
+<item><p><userinput>provider_size</userinput> gives the data layer a known
+volume size against which to validate everything else it reads, before
+it reads it.</p></item>
+<item><p><userinput>provider_open</userinput> distinguishes "no medium"
+(<reference type="error" name="NoMedium"/>, which is a normal state) from
+"cannot set up" (any other error, which stops the module loading). See
+<reference type="subsubsection" name="The no-medium state"/>.</p></item>
+</list>
+</p>
+<p>
+The template addresses the medium in bytes, with a 32-bit offset, which is
+enough for media up to 4 GB. A filing system that must present something
+larger should change <userinput>provider_offset</userinput> to a block
+number and the units of <userinput>provider_read</userinput> and
+<userinput>provider_size</userinput> to blocks, and make the change in the
+data layer at the same time; nothing above the data layer is affected.
+</p>
+<p>
+The provider is chosen at build time, and is never exposed through the
+FileSwitch entry points, a SWI or a *command. The production build links
+<filename>c.provider</filename>, which you replace with code that reaches
+your storage - for example through the BlockDevices interface, a podule
+driver, or a network connection. The test build links
+<filename>c.testprov</filename>, whose medium is a
+<userinput>const</userinput> image compiled into the module, and so is
+identical on every run. Both present the same interface, so the data
+layer cannot tell which it is talking to.
+</p>
+</subsubsection>
+
+<subsubsection title="The data layer">
+<p>
+The data layer's job is to turn "the bytes at offset N" into "the object
+called <userinput>$.dir.leaf</userinput>". It reads the medium's fixed
+structures once, at mount time, and then walks the directory structure on
+demand for each pathname it is given, describing each object it finds in
+an <userinput>fsdata_descriptor</userinput>: whether it is a directory,
+its length, its filetype and datestamp (or raw load and execution
+addresses, for a medium that records RISC OS metadata exactly), and its
+permissions, all in the medium's own terms.
+</p>
+<p>
+Converting that description into what FileSwitch wants is the one place
+where the two vocabularies meet, and the template puts it in the data
+layer, as <userinput>fsdata_to_riscos</userinput>, rather than in
+<filename>c._file</filename>. Every entry point that reports an object -
+<reference type="entry" name="FSEntry_File" reason="5"/>,
+<reference type="entry" name="FSEntry_File" reason="255"/>, the records
+written by <reference type="entry" name="FSEntry_Func" reason="19"/> and
+its older forms, and the extent returned by
+<reference type="entry" name="FSEntry_Open"/> - then reports it the same
+way, and the entry-point files never need to know how a date or a
+filetype is stored on the medium.
+</p>
+<p>
+<extended-example type="c">
+void fsdata_to_riscos(const fsdata_descriptor *desc, fsdata_catalogue *cat)
+{
+    cat-&gt;object_type = desc-&gt;is_directory ? ObjectType_Directory
+                                           : ObjectType_File;
+    cat-&gt;length = desc-&gt;length;
+
+    if (desc-&gt;has_filetype)
+    {
+        /* Filetyped object: load = 0xFFFttthh, exec = low 4 bytes of date */
+        cat-&gt;load_address = 0xFFF00000u
+                          | ((desc-&gt;filetype &amp; 0xFFFu) &lt;&lt; 8)
+                          | (desc-&gt;datestamp_high &amp; 0xFFu);
+        cat-&gt;exec_address = desc-&gt;datestamp_low;
+    }
+    else
+    {
+        cat-&gt;load_address = desc-&gt;load_address;
+        cat-&gt;exec_address = desc-&gt;exec_address;
+    }
+
+    cat-&gt;attributes = 0;
+    if (desc-&gt;owner_read)   cat-&gt;attributes |= Attribute_OwnerRead;
+    if (desc-&gt;owner_write)  cat-&gt;attributes |= Attribute_OwnerWrite;
+    if (desc-&gt;public_read)  cat-&gt;attributes |= Attribute_PublicRead;
+    if (desc-&gt;public_write) cat-&gt;attributes |= Attribute_PublicWrite;
+    if (desc-&gt;locked)       cat-&gt;attributes |= Attribute_Locked;
+}
+</extended-example>
+</p>
+<p>
+The datestamp is the RISC OS 5-byte count of centiseconds since
+1 January 1900: its top byte goes into the low byte of the load address,
+and its low four bytes are the execution address. A medium that stores
+dates in another form (seconds since another epoch, a broken-down date)
+should convert them into this form when it fills in the descriptor, so
+that the conversion above stays fixed. A medium that stores no date at
+all should give the object a datestamp of zero and filetype
+&amp;FFD (Data), unless the filing system can infer a better filetype from
+the name.
+</p>
+<p>
+Permissions map onto the RISC OS attribute bits: owner read and write in
+bits 0 and 1, locked in bit 3, public read and write in bits 4 and 5. A
+medium with no concept of a particular permission should fill in the
+sensible default for it - readable, not locked, and writable only when
+the volume is writable - rather than leaving it unset.
+</p>
+<p>
+A useful shape for an entry point that reports an object is then:
+</p>
+<p>
+<extended-example type="c">
+case FSEntry_File_Reason_ReadCatalogueInformation:
+{
+    fsdata_descriptor desc;
+    fsdata_catalogue cat;
+
+    err = fsdata_find(parm-&gt;name, &amp;desc);
+    if (err == err_NotFound)             /* your data layer's "no such object" */
+    {
+        parm-&gt;reason = (FSEntry_File_Reason) ObjectType_NotFound;   /* R0 */
+        err = NULL;
+        break;
+    }
+    if (err != NULL) break;
+
+    fsdata_to_riscos(&amp;desc, &amp;cat);
+    parm-&gt;reason = (FSEntry_File_Reason) cat.object_type;           /* R0 */
+    parm-&gt;info.load_exec.load_address = (char *) cat.load_address;  /* R2 */
+    parm-&gt;info.load_exec.execute_address = (char *) cat.exec_address; /* R3 */
+    parm-&gt;extras.info.length = cat.length;                           /* R4 */
+    parm-&gt;extras.info.attributes = cat.attributes;                   /* R5 */
+    break;
+}
+</extended-example>
+</p>
+<p>
+Note that "not found" is an error from the data layer's point of view but
+an object type of 0 from FileSwitch's; the entry point makes that
+translation, because it is a FileSwitch rule, not a format rule.
+</p>
+</subsubsection>
+
+<subsubsection title="The no-medium state">
+<p>
+A filing system module is loaded whether or not there is anything for it
+to present: the drive may be empty, the device not yet connected, the
+image not yet mounted. The template treats this as a normal state, the
+"no-medium" state, rather than a failure, and handles it in three
+places.
+</p>
+<p>
+<list type="unordered">
+<item><p><em>Initialisation.</em> <userinput>provider_open</userinput>
+is called, and if it succeeds the volume is mounted with
+<userinput>fsdata_mount</userinput>. If it reports
+<reference type="error" name="NoMedium"/>, the module carries on and still
+declares itself to FileSwitch; only some other error stops it loading. A
+filing system that fails to initialise because its medium is absent
+cannot be loaded from a boot sequence before the medium is present, which
+is usually the wrong behaviour.</p></item>
+<item><p><em>The entry points.</em> Every entry point that needs the
+medium asks <userinput>fsdata_volume_present()</userinput> first, and
+returns <reference type="error" name="NoMedium"/> if there is none, before
+touching any structure that would not be there. The exceptions are
+<reference type="entry" name="FSEntry_Close"/>, which must always release
+its handle (see below), and the
+<reference type="entry" name="FSEntry_Func"/> reason codes that concern
+the filing system rather than the medium
+(<reference type="entry" name="FSEntry_Func" reason="16"/>,
+<reference type="entry" name="FSEntry_Func" reason="17"/> and
+<reference type="entry" name="FSEntry_Func" reason="7"/>), which work
+without one. The result is that a
+<userinput>*Cat DummyFS:</userinput> on an empty drive gives a clean
+error, exactly as ADFS's "Drive empty" does, and nothing is left half
+done.</p></item>
+<item><p><em>Removal.</em> When the medium goes away while the module is
+running - an eject, a disconnection - whatever notices it (a service call
+from the device's driver, or a callback from the provider) calls
+<userinput>fsdata_unmount()</userinput>. That marks the volume absent
+first, then discards cached structures, then closes the provider, in that
+order, so that an entry point arriving part way through sees "no medium"
+rather than a half-released volume. Handles that were open on the medium
+stay in the open-file table; each subsequent operation on one of them
+fails with <reference type="error" name="NoMedium"/>, and when FileSwitch
+eventually closes it, <reference type="entry" name="FSEntry_Close"/>
+releases the table entry without needing the medium and without error.
+When a medium arrives again, the same <userinput>provider_open</userinput>
+and <userinput>fsdata_mount</userinput> sequence as at initialisation
+mounts it.</p></item>
+</list>
+</p>
+<p>
+Finalisation is the mirror of initialisation, and its order matters. The
+module first removes the filing system with
+<reference type="swi" name="OS_FSControl" reason="16"/>. FileSwitch calls
+<reference type="entry" name="FSEntry_Close"/> for every file still open
+on the filing system as part of this, so the volume must still be
+mounted at that point for those closes to flush and complete normally.
+The module then frees any open-file table entries that the closes did not
+reach (there will be none unless FileSwitch itself was absent), and only
+then calls <userinput>fsdata_unmount()</userinput>, which closes the
+provider and releases the medium. The error from the removal is ignored:
+a module must never refuse to finalise because FileSwitch has been
+reinitialised underneath it.
+</p>
+</subsubsection>
+
+<subsubsection title="Read-only filing systems">
+<p>
+Many filing systems present a medium that is never written: a read-only
+disc, a distribution image, an archive. Such a filing system should set
+bit 16 (<userinput>InfoWord_ReadOnly</userinput>) of its information
+word, and answer every reason code that would modify the medium with
+<reference type="error" name="WriteProtected"/>. Everything else it
+implements normally. The following matrix lists every reason code by
+which side of that line it falls; the template's entry-point sources
+carry the same annotation against each case.
+</p>
+<p>
+<definition-table head-name="Entry point" head-extra="Implement normally" head-value="Return WriteProtected">
+ <definition name="FSEntry_Open" extra="0 (OpenRead)">1 (CreateUpdate), 2 (Update)</definition>
+ <definition name="FSEntry_GetBytes" extra="all">-</definition>
+ <definition name="FSEntry_PutBytes" extra="-">all (never reached, since no handle is opened for writing; return the error anyway)</definition>
+ <definition name="FSEntry_Args" extra="0, 2, 4, 5, 6, 9 (pointer, extent, allocation, EOF, flush, datestamp reads); 1 (WriteSequentialFilePointer) for a pointer within the extent">1 (WriteSequentialFilePointer) beyond the extent, 3 (WriteFileExtent), 7 (EnsureFileSize), 8 (WriteZerosToFile)</definition>
+ <definition name="FSEntry_Close" extra="all">-</definition>
+ <definition name="FSEntry_File" extra="5, 9 (read catalogue), 255 (load)">0 (save), 1, 2, 3, 4 (write catalogue, load, exec, attributes), 6 (delete), 7 (create), 8 (create directory)</definition>
+ <definition name="FSEntry_Func" extra="0, 1 (set directories), 2-6 (listings), 7 (options), 10-13 (boot, names), 14, 15, 19 (enumeration), 16, 17, 20">8 (rename), 9 (access)</definition>
+ <definition name="FSEntry_GBPB" extra="3, 4 (get)">1, 2 (put)</definition>
+</definition-table>
+</p>
+<p>
+Two consequences are easy to miss. Directory enumeration and the
+directory-context reason codes are read operations, and a read-only
+filing system must implement them fully, or the Filer cannot show its
+contents; and <reference type="entry" name="FSEntry_Args" reason="1"/>
+is only a write when it would extend the file, so it should be
+implemented normally for any pointer up to the extent. When a descriptor
+is converted for a read-only volume, clear the write bits in the
+attributes it produces, so that applications which inspect attributes
+before offering to save see the object as it really is.
+</p>
+</subsubsection>
+
+<subsubsection title="Allocations">
+<p>
+Three numbers identify a filing system to the rest of the system, and
+all three in the template are examples only, not allocated to it or to
+any filing system built from it:
+</p>
+<p>
+<list type="unordered">
+<item><p>the filing system number, in bits 0-7 of the information word
+(<userinput>FilingSystemNumber</userinput> in
+<filename>h.consts</filename>);</p></item>
+<item><p>the SWI chunk base (<userinput>swi-chunk-base-number</userinput> in
+<filename>cmhg.modhead</filename>);</p></item>
+<item><p>the error base (<userinput>error-base</userinput> in
+<filename>cmhg.modhead</filename>).</p></item>
+</list>
+</p>
+<p>
+Each is unique across all RISC OS software, and each must be allocated
+to your filing system before it is released - together with the module
+name and the filing system name, which are likewise registered. Until
+then the example values are adequate for development, but two things
+follow from their being examples. First, another module built from the
+same template, or any module that happens to use the same values, cannot
+be loaded at the same time: FileSwitch refuses a second filing system
+with the same number or name, and two modules claiming the same SWI
+chunk will each dispatch the other's SWIs. Second, a filing system that
+re-implements an existing one - a replacement for a filing system already
+present in the ROM, presenting the same medium under the same name and
+number - cannot coexist with the original. It must either use its own
+name and number, and be a different filing system from the point of view
+of pathnames and applications, or it must be loaded in place of the
+original, with the original removed first.
+</p>
+<p>
+When choosing error numbers within your allocated base, match the low
+byte of the equivalent ADFS error where one exists, as described in
+<reference type="subsection" name="Building a filing system from the template"/>,
+so that software which inspects error numbers treats your errors as it
+treats ADFS's.
+</p>
+</subsubsection>
+
+<subsubsection title="Matching an existing filing system's conventions">
+<p>
+A filing system that presents a medium format which an existing RISC OS
+filing system also presents will be judged against that filing system:
+applications, and users, will expect the same pathnames to reach the same
+objects, with the same names, types and dates. The places where such a
+format's raw contents and RISC OS's view of them differ are the places
+where the two implementations can silently diverge, and each of them
+needs a deliberate decision, recorded in the data layer, and a test that
+pins the decision down. In particular:
+</p>
+<p>
+<list type="unordered">
+<item><p><em>Pathname separators.</em> RISC OS uses
+<userinput>.</userinput> to separate path elements and
+<userinput>/</userinput> as an ordinary character, where most other
+formats do the reverse. Decide how the two are exchanged in each
+direction, and what happens to a name that contains both.</p></item>
+<item><p><em>Filename conversion.</em> Length limits, the
+character set, case folding, version or extension suffixes, and the
+characters RISC OS reserves (<userinput>$ &amp; % @ \ ^ : * # </userinput>
+and the wildcards) all need a rule, and the rule needs to give the same
+leafname in directory enumeration as the one that
+<userinput>fsdata_find</userinput> will accept back.</p></item>
+<item><p><em>Native metadata.</em> A format may carry a RISC OS
+load and execution address, filetype or attributes in an extension record
+of its own; if the existing filing system honours that record, yours must
+recognise it in the same place and prefer it over anything inferred from
+the name.</p></item>
+<item><p><em>Variant record lengths.</em> A format with more than
+one variant - different sector or record sizes, or optional fields that
+change where an object's data starts - must have each variant's length
+handled by the provider or the data layer, and each variant represented
+in the test image.</p></item>
+<item><p><em>Alternative name tables.</em> A format that carries
+more than one directory tree (a base tree and a supplementary tree with
+longer or differently encoded names, for example) needs a rule for which
+is preferred, and for what happens when only one is present.</p></item>
+</list>
+</p>
+<p>
+Each of these is a switch in the data layer, not in the FileSwitch layer,
+and each is a good candidate for a dedicated object in the test image
+and a check in <filename>tests.TestFS</filename>.
+</p>
+</subsubsection>
+</subsection>
+
+<subsection title="Testing">
+<p>
+A filing system can only be tested by driving FileSwitch at it, since
+that is how every application reaches it; and FileSwitch can only reach
+a filing system that is registered, which needs a running RISC OS. The
+template therefore provides a test that is repeatable on any RISC OS, and
+is run automatically by the build service in CI:
+</p>
+<p>
+<list type="unordered">
+<item><p>A <em>test build</em> of the module,
+<filename>rm32.DummyFSTest</filename>, built by
+<userinput>riscos-amu -f Makefile,fe1 ram TEST=1</userinput>. It differs
+from the production module in one object only: the provider is
+<filename>c.testprov</filename>, whose medium is an image compiled into
+the module itself, rather than <filename>c.provider</filename>. Every run
+therefore sees exactly the same medium, and no hardware is needed. The
+test provider is private to this build: it is not a *command or SWI that
+can mount an image at run time in the production module, because
+anything that can be reached that way has to be supported and secured
+like any other feature.</p></item>
+<item><p>A <em>BASIC test program</em>,
+<filename>tests.TestFS</filename>, which loads the test module, drives
+FileSwitch at it through <reference type="swi" name="OS_File"/>,
+<reference type="swi" name="OS_Find"/>,
+<reference type="swi" name="OS_GBPB"/> and
+<reference type="swi" name="OS_FSControl"/>, and checks that each
+operation reaches the filing system and is answered as expected. It then
+loads the production module to check the no-medium behaviour, and reloads
+the test module to check re-registration. Each check prints PASS or
+FAIL, and a non-zero number of failures ends the program with an error,
+so that a build script sees a non-zero result.</p></item>
+</list>
+</p>
+<p>
+Run the tests from the directory containing <filename>rm32</filename>:
+</p>
+<p>
+<extended-example type="pseudo">
+riscos-amu -f Makefile,fe1 ram
+riscos-amu -f Makefile,fe1 ram TEST=1
+riscos-run --command "Run tests.TestFS"
+</extended-example>
+</p>
+<p>
+or, on RISC OS itself, <userinput>*Run tests.TestFS</userinput>. Under
+Pyromaniac, filing system registration is governed by the
+<userinput>Filesystem.register_filesystem</userinput> configuration
+option, which is <userinput>allow</userinput> by default; a registered
+filing system appears under <userinput>$.FS</userinput> there, as well
+as through its own <userinput>name:</userinput> prefix.
+</p>
+<p>
+As supplied, the tests check that each entry point is reached (by
+looking for <reference type="error" name="DoesNothing"/>) rather than
+that it works. As you implement the filing system, each of those checks
+becomes a check on a real result - an object type of 1 for a file that
+the test image contains, the right bytes back from a read, the expected
+leafnames from an enumeration - and the test image in
+<filename>c.testprov</filename> grows the objects those checks need.
+Keep one object in the image for each convention described in
+<reference type="subsubsection" name="Matching an existing filing system's conventions"/>,
+so that a change to a name or date rule is caught by a test rather than
+by a user.
 </p>
 </subsection>
 
@@ -1531,8 +2034,10 @@ the system.
 <p>
 The template declares the following errors. Only
 <reference type="error" name="DoesNothing"/> belongs to the template
-itself; the other two are commonly needed by any real filing system and
-are provided as a starting point.
+itself; the others are commonly needed by any real filing system and are
+provided as a starting point. Their numbers follow from the example error
+base in <filename>cmhg.modhead</filename>, and change with it; see
+<reference type="subsubsection" name="Allocations"/>.
 </p>
 
 <error-definition name="NoMemory"
@@ -1562,6 +2067,26 @@ should not return this error for any reason code it actually expects to
 receive in normal use; replace each case with real behaviour, or with a
 more specific and meaningful error, as you implement the corresponding
 functionality.</p></use>
+</error-definition>
+
+<error-definition name="NoMedium"
+                  number="12103"
+                  description="No medium present">
+<use><p>Returned by every entry point that needs the medium when no
+volume is mounted: before a medium has been inserted or connected, after
+one has been removed, and by the production build of the template as
+supplied, whose provider has no medium. See
+<reference type="subsubsection" name="The no-medium state"/>.</p></use>
+</error-definition>
+
+<error-definition name="WriteProtected"
+                  number="12104"
+                  description="Medium is write protected">
+<use><p>Returned by a read-only filing system from every reason code that
+would modify the medium; see
+<reference type="subsubsection" name="Read-only filing systems"/> for which
+those are. Also appropriate for a writable filing system whose medium is
+currently protected against writing by hardware.</p></use>
 </error-definition>
 
 </section>
@@ -1678,6 +2203,11 @@ error-base: &amp;<userreplace>your allocated error base</userreplace>
   </revision>
   <revision number="3" author="Charles Ferguson" date="08 Aug 2026" title="Expanded from the original PRM chapter">
     <change>Linked every entry point and reason code to its section of the original "Writing a filing system" PRM chapter, and expanded the technical detail throughout to match it: register-level behaviour, buffer/offset guarantees, directory-listing record layouts, and several corrections to reason codes that were previously described only by their C enumerator name.</change>
+  </revision>
+  <revision number="4" author="Charles Ferguson" date="18 Sep 2026" title="Structure, layering and testing">
+    <change>Described the three-layer structure of a filing system (FileSwitch, data and provider layers) and the provider and data-layer interfaces the template now supplies, including descriptor conversion.</change>
+    <change>Added the no-medium state and the order of finalisation, a read-only reason-code matrix, guidance on allocations and on matching an existing filing system's conventions, and the test build and BASIC tests.</change>
+    <change>Corrected the filing system information word bit layout to match the PRM, and added the NoMedium and WriteProtected errors.</change>
   </revision>
  </history>
 

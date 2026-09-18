@@ -1,0 +1,154 @@
+/*******************************************************************
+ * File:        fsdata
+ * Purpose:     Implementation of the data layer declared in
+ *              h.fsdata: the volume state, the conversion from a
+ *              medium-format descriptor to RISC OS catalogue
+ *              information, and the object lookup that the FileSwitch
+ *              layer (the c._* files) calls. See prminxml/fsinc.xml
+ *              ("The data layer") for how the pieces fit together.
+ *
+ *              The volume state and the conversion are complete. The
+ *              lookup is a skeleton: replace its body with code that
+ *              reads your medium's directory structures through
+ *              provider_read.
+ * Author:      YOUR NAME HERE
+ * Date:        18 Sep 2026
+ ******************************************************************/
+
+#ifndef __DUMMYFSDUMMYFS_H
+#include "dummyfs.h"
+#endif
+
+/*
+   The volume state. Add to this whatever structural information you
+   read from the medium at mount time - the location and size of the
+   root directory, block sizes, name encoding parameters - so that it
+   need not be re-read on every operation. Keep it small: it is
+   resident in the RMA for as long as the module is.
+ */
+static struct
+{
+    provider_context *provider;         /* NULL when no medium is present */
+} volume;
+
+/* Convert a descriptor to RISC OS catalogue information: see h.fsdata */
+void fsdata_to_riscos(const fsdata_descriptor *desc, fsdata_catalogue *cat)
+{
+    cat->object_type = desc->is_directory ? ObjectType_Directory : ObjectType_File;
+    cat->length = desc->length;
+
+    if (desc->has_filetype)
+    {
+        /* Filetyped object: 0xFFFttthh / low four datestamp bytes */
+        cat->load_address = 0xFFF00000u
+                          | ((desc->filetype & 0xFFFu) << 8)
+                          | (desc->datestamp_high & 0xFFu);
+        cat->exec_address = desc->datestamp_low;
+    }
+    else
+    {
+        cat->load_address = desc->load_address;
+        cat->exec_address = desc->exec_address;
+    }
+
+    cat->attributes = 0;
+    if (desc->owner_read)
+    {
+        cat->attributes |= Attribute_OwnerRead;
+    }
+    if (desc->owner_write)
+    {
+        cat->attributes |= Attribute_OwnerWrite;
+    }
+    if (desc->public_read)
+    {
+        cat->attributes |= Attribute_PublicRead;
+    }
+    if (desc->public_write)
+    {
+        cat->attributes |= Attribute_PublicWrite;
+    }
+    if (desc->locked)
+    {
+        cat->attributes |= Attribute_Locked;
+    }
+}
+
+/* Mount a volume from an opened provider: see h.fsdata */
+_kernel_oserror *fsdata_mount(provider_context *ctx)
+{
+    _kernel_oserror *err = NULL;
+
+    if (ctx == NULL)
+    {
+        return err_NoMedium;
+    }
+
+    /*
+       Read the medium's fixed structures here, through provider_read,
+       and check that they describe a volume this filing system
+       understands: the provider's size (provider_size) bounds every
+       offset you will read. If anything is wrong, set err and the
+       volume will not be mounted.
+
+       The template has no format to check, so any medium mounts.
+     */
+
+    if (err != NULL)
+    {
+        provider_close(ctx);
+        return err;
+    }
+
+    volume.provider = ctx;
+    return NULL;
+}
+
+/* Unmount the volume and close its provider: see h.fsdata */
+void fsdata_unmount(void)
+{
+    provider_context *ctx = volume.provider;
+
+    /*
+       Mark the volume absent before releasing anything, so that a
+       FileSwitch call arriving part-way through sees no medium rather
+       than a half-released one.
+     */
+    volume.provider = NULL;
+
+    /* Discard any cached directory or structural information here */
+
+    provider_close(ctx);
+}
+
+/* Is a volume mounted: see h.fsdata */
+int fsdata_volume_present(void)
+{
+    return volume.provider != NULL;
+}
+
+/* Locate an object by pathname: see h.fsdata */
+_kernel_oserror *fsdata_find(const char *pathname, fsdata_descriptor *desc)
+{
+    if (!fsdata_volume_present())
+    {
+        return err_NoMedium;
+    }
+
+    /*
+       Walk the pathname here. Starting from the root directory found
+       at mount time, split off each '.'-separated element, translate
+       it to the medium's own name encoding, and search the current
+       directory's entries (read with provider_read from
+       volume.provider) for a match; the final element's entry is the
+       object, and should be transcribed into *desc.
+
+       Remember that RISC OS names are compared case-insensitively
+       unless the filing system registered itself otherwise, and that
+       '$' alone names the root directory.
+     */
+    pathname = pathname;
+    desc = desc;
+
+    return err_DoesNothing;
+}

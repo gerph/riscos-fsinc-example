@@ -34,6 +34,19 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
 {
     _kernel_oserror *err;
 
+    /*
+       A few reason codes concern the filing system rather than the
+       medium, and must work without one; everything else fails cleanly
+       when there is no medium to read.
+     */
+    if (parm->reason != FSEntry_Func_Reason_ShutDown &&
+        parm->reason != FSEntry_Func_Reason_PrintStartUpBanner &&
+        parm->reason != FSEntry_Func_Reason_SetFilingSystemOptions &&
+        !fsdata_volume_present())
+    {
+        return err_NoMedium;
+    }
+
     switch (parm->reason)
     {
         case FSEntry_Func_Reason_SetCurrentDirectory:
@@ -198,6 +211,8 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
                                 will then report "Bad rename" to the
                                 caller itself
 
+               Read-only filing system: return err_WriteProtected.
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12374
              */
             err = err_DoesNothing;
@@ -217,6 +232,8 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
                   parm->second_parameter.access_string-> access
                                 attribute string, terminated by a
                                 null, space, or control character (R2)
+
+               Read-only filing system: return err_WriteProtected.
 
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12378
              */
@@ -435,6 +452,15 @@ _kernel_oserror *fsentry_func(FSEntry_Func_Parameter * parm)
 
                => (as FSEntry_Func_Reason_ReadDirectoryEntries)
                <= (as FSEntry_Func_Reason_ReadDirectoryEntries)
+
+               This is the enumeration used by the Filer and by most
+               modern software, so it is the one to implement first:
+               fsdata_find the directory, then for each entry from
+               parm->read_offset onwards fill a descriptor, convert it
+               with fsdata_to_riscos, and write the record. Implemented
+               normally by a read-only filing system, as are reason
+               codes 14 and 15.
+
                   See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12419
              */
             err = err_DoesNothing;

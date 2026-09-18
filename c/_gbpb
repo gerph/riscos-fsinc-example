@@ -37,6 +37,15 @@ _kernel_oserror *fsentry_gbpb(FSEntry_GBPB_Parameter * parm)
 {
     _kernel_oserror *err;
 
+    /*
+       Nothing can be done without a medium: fail cleanly rather than
+       reaching for structures that are not there.
+     */
+    if (!fsdata_volume_present())
+    {
+        return err_NoMedium;
+    }
+
     switch (parm->reason)
     {
         case FSEntry_GBPB_Reason_PutMultipleBytesHere:
@@ -47,6 +56,8 @@ _kernel_oserror *fsentry_gbpb(FSEntry_GBPB_Parameter * parm)
 
                => parm->sequential_file_pointer-> file offset to
                                 write at (R4)
+
+               Read-only filing system: return err_WriteProtected.
 
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12485
              */
@@ -60,6 +71,8 @@ _kernel_oserror *fsentry_gbpb(FSEntry_GBPB_Parameter * parm)
 
                => parm->sequential_file_pointer (R4) is not given on
                                 entry for this reason code
+
+               Read-only filing system: return err_WriteProtected.
 
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12485
              */

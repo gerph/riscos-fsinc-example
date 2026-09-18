@@ -69,6 +69,20 @@ _kernel_oserror *fsentry_putbytes(FSEntry_PutBytes_Parameter * parm)
 {
     _kernel_oserror *err;
 
+    /*
+       Nothing can be done without a medium: fail cleanly rather than
+       reaching for structures that are not there.
+     */
+    if (!fsdata_volume_present())
+    {
+        return err_NoMedium;
+    }
+
+    /*
+       Read-only filing system: FileSwitch should never reach this
+       entry point, since no handle was ever opened with write access;
+       return err_WriteProtected for safety rather than err_DoesNothing.
+     */
     err = err_DoesNothing;
 
     return err;

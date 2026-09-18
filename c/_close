@@ -34,11 +34,25 @@
                    filing system need not implement "close everything"
                    as a special case)
 
+                   Unlike the other entry points, this one does not
+                   fail when no medium is present: FileSwitch closes
+                   files after the medium has been removed, and when
+                   the filing system itself is being removed, and the
+                   open-file table entry must be released in either
+                   case. Only the flush of buffered data, and any
+                   re-stamping, need the medium, and those are skipped
+                   when it is absent.
+
                    See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12285
  Parameters:    parm-> the parameters (see h.fsentries for details)
  Returns:       pointer to error, or NULL if successful
  ******************************************************************/
 _kernel_oserror *fsentry_close(FSEntry_Close_Parameter * parm)
 {
+    /*
+       Free the open-file table entry for parm->handle here, whether or
+       not fsdata_volume_present() - then, only if the medium is
+       present, flush and re-stamp.
+     */
     return err_DoesNothing;
 }

@@ -1,0 +1,178 @@
+/*******************************************************************
+ * File:        fsdata
+ * Purpose:     The data layer: the part of the filing system that
+ *              understands the structure of the medium. It reads the
+ *              medium through the provider interface (h.provider),
+ *              collects the structural information the filing system
+ *              needs (where the root directory is, how objects are
+ *              described, how names are encoded), and presents each
+ *              object to the FileSwitch layer (the c._* files) as an
+ *              fsdata_descriptor: a description of the object in the
+ *              medium's own terms, independent of both the storage
+ *              beneath it and the RISC OS conventions above it.
+ *
+ *              The conversion from that description to the load
+ *              address, execution address, length, attributes and
+ *              object type that FileSwitch expects is done here, by
+ *              fsdata_to_riscos, so that every entry point reports an
+ *              object the same way, and so that the c._* files stay
+ *              free of on-medium format knowledge.
+ *
+ *              The data layer also owns the volume state: whether a
+ *              medium is currently mounted, and the provider context
+ *              through which it is read. The FileSwitch layer asks
+ *              fsdata_volume_present() before touching the medium,
+ *              so that every FileSwitch call fails cleanly with
+ *              err_NoMedium when there is nothing to read.
+ * Author:      YOUR NAME HERE
+ * Date:        18 Sep 2026
+ ******************************************************************/
+
+#ifndef __DUMMYFSFSDATA_H
+#define __DUMMYFSFSDATA_H
+
+#ifndef __DUMMYFSPROVIDER_H
+#include "provider.h"
+#endif
+
+/*
+   A description of one object on the medium, as the data layer found
+   it. Fill this in from your own on-medium structures; it is the
+   only form in which the rest of the filing system sees an object.
+   Extend it as your filing system needs (for example with the
+   location of the object's data on the medium, so that reads can find
+   it), but keep the fields below, which fsdata_to_riscos consumes.
+ */
+typedef struct fsdata_descriptor
+{
+    int is_directory;                   /* non-zero if the object is a directory */
+    unsigned int length;                /* length of the object's data, in bytes */
+
+    /*
+       Either the object carries a RISC OS filetype and a datestamp
+       (has_filetype non-zero, the usual case for objects on a medium
+       that stores a modification time), or it carries raw RISC OS
+       load and execution addresses (has_filetype zero, for media that
+       record RISC OS metadata exactly).
+     */
+    int has_filetype;
+    unsigned int filetype;              /* 12-bit RISC OS filetype, eg 0xFFD for Data */
+    unsigned int datestamp_low;         /* low 4 bytes of the 5-byte centisecond datestamp */
+    unsigned int datestamp_high;        /* high byte of the 5-byte datestamp, in bits 0-7 */
+    unsigned int load_address;          /* only used when has_filetype is zero */
+    unsigned int exec_address;          /* only used when has_filetype is zero */
+
+    /*
+       Access permissions, in the medium's terms. A medium that has no
+       notion of a permission should set the sensible default for it
+       (readable, not locked; writable only if the volume is writable).
+     */
+    int owner_read;
+    int owner_write;
+    int public_read;
+    int public_write;
+    int locked;                         /* protected against deletion and modification */
+} fsdata_descriptor;
+
+/*
+   The RISC OS view of an object, as returned by FSEntry_File reason
+   codes 5, 6, 9 and 255 and written into the records produced by
+   FSEntry_Func reason codes 15 and 19.
+ */
+typedef struct fsdata_catalogue
+{
+    int object_type;                    /* ObjectType_NotFound, _File or _Directory (h.consts) */
+    unsigned int load_address;
+    unsigned int exec_address;
+    unsigned int length;
+    unsigned int attributes;            /* Attribute_* bits (h.consts) */
+} fsdata_catalogue;
+
+/*******************************************************************
+ Function:      fsdata_to_riscos
+ Description:   Convert a descriptor in the medium's own terms into
+                the load address, execution address, length,
+                attributes and object type that FileSwitch expects.
+                For an object with a filetype, the load address is
+                built as 0xFFFttthh (ttt = filetype, hh = high byte of
+                the datestamp) and the execution address holds the low
+                four bytes of the datestamp; for an object without,
+                the raw addresses are passed through. Attributes are
+                assembled from the permission flags. A directory's
+                length is reported as 0 unless the descriptor gives
+                one.
+ Parameters:    desc-> the descriptor to convert
+                cat-> the catalogue information to fill in
+ Returns:       (nothing)
+ ******************************************************************/
+extern void fsdata_to_riscos(const fsdata_descriptor *desc,
+                             fsdata_catalogue *cat);
+
+/*******************************************************************
+ Function:      fsdata_mount
+ Description:   Take ownership of an opened provider context and read
+                the structural information the filing system needs
+                from the medium (its root directory, its layout
+                parameters, and anything else that is fixed for the
+                lifetime of the volume). On success the volume is
+                present, and fsdata_volume_present() returns non-zero;
+                on failure the provider is closed and the volume
+                remains absent.
+ Parameters:    ctx-> the context returned by provider_open
+ Returns:       NULL if the volume was mounted; an error if the medium
+                could not be read or is not in a format this filing
+                system recognises
+ ******************************************************************/
+extern _kernel_oserror *fsdata_mount(provider_context *ctx);
+
+/*******************************************************************
+ Function:      fsdata_unmount
+ Description:   Forget the volume, discard any cached structural
+                information, and close the provider. Called on module
+                finalisation (after the filing system has been removed
+                from FileSwitch, so that FileSwitch has already closed
+                every file that was open on it), and from whatever
+                notices that the medium has been removed. Safe to call
+                when no volume is present.
+ Parameters:    (none)
+ Returns:       (nothing)
+ ******************************************************************/
+extern void fsdata_unmount(void);
+
+/*******************************************************************
+ Function:      fsdata_volume_present
+ Description:   Report whether a medium is currently mounted. Every
+                FileSwitch entry point that reads or writes the medium
+                calls this first, and returns err_NoMedium if it
+                reports zero.
+ Parameters:    (none)
+ Returns:       non-zero if a volume is mounted, 0 if not
+ ******************************************************************/
+extern int fsdata_volume_present(void);
+
+/*******************************************************************
+ Function:      fsdata_find
+ Description:   Locate the object named by a RISC OS pathname on the
+                mounted volume and describe it. This is the routine
+                the FileSwitch layer uses for every operation
+                identified by name (FSEntry_File, FSEntry_Open,
+                FSEntry_Func); it walks the directory structure on the
+                medium from the root, one path element at a time,
+                translating each RISC OS name into the medium's own
+                name encoding.
+ Parameters:    pathname-> the pathname as FileSwitch supplied it
+                    (starting after the "fsname:" prefix, so normally
+                    "$.dir.leaf"), control-terminated
+                desc-> the descriptor to fill in if the object is
+                    found
+ Returns:       NULL if the object was found and desc filled in;
+                err_NotFound-style error if the object does not exist
+                (callers that must report "not found" as object type 0
+                rather than an error, such as FSEntry_File 5, test for
+                this specifically); another error if the medium could
+                not be read
+ ******************************************************************/
+extern _kernel_oserror *fsdata_find(const char *pathname,
+                                    fsdata_descriptor *desc);
+
+#endif

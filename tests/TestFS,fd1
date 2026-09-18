@@ -1,0 +1,137 @@
+REM >TestFS
+REM Repeatable FileSwitch-level tests for the DummyFS template.
+REM
+REM Loads the test build of the module (rm32.DummyFSTest, built with
+REM 'riscos-amu -f Makefile,fe1 ram TEST=1'), which contains the in-memory
+REM test provider, and drives FileSwitch at it through the ordinary file
+REM SWIs, checking that each operation reaches the filing system and is
+REM answered as expected. It then loads the production build
+REM (rm32.DummyFS) to check the no-medium behaviour, and reloads the test
+REM build to check that re-registration works.
+REM
+REM Run from the directory containing rm32, for example:
+REM   riscos-run --command "Run tests.TestFS"
+REM or on the RISC OS command line:
+REM   *Run tests.TestFS
+REM
+REM Every check prints PASS or FAIL; a non-zero number of failures ends the
+REM program with an error, so that a build script can detect it.
+REM
+REM As you implement the filing system, extend these tests: the errors the
+REM template returns become real results, and the test image in c.testprov
+REM gains real objects for them to find.
+ON ERROR ERROR EXT ERR, REPORT$ + " at line " + STR$(ERL/10)
+
+REM Error numbers declared in cmhg.modhead, from the module's error base
+errbase% = &12100
+err_DoesNothing% = errbase% + 2
+err_NoMedium% = errbase% + 3
+
+fsname$ = "DummyFS"
+prefix$ = fsname$ + ":$"
+
+passes% = 0
+failures% = 0
+DIM buffer% 1024
+
+PRINT "DummyFS template tests"
+PRINT "======================"
+
+REM --- Test build: the entry points are reached ------------------------
+PRINT "Test build (rm32.DummyFSTest):"
+PROCload("rm32.DummyFSTest")
+PROCcheck("module is present", FNmodule_present(fsname$))
+
+REM OS_File 5 on the root: reaches FSEntry_File 5
+PROCcheck("OS_File 5 reaches FSEntry_File", FNfile_error(5, prefix$ + ".file") = err_DoesNothing%)
+
+REM OS_File 8 (create directory): reaches FSEntry_File 8
+PROCcheck("OS_File 8 reaches FSEntry_File", FNfile_error(8, prefix$ + ".dir") = err_DoesNothing%)
+
+REM OS_File 6 (delete): reaches FSEntry_File 6
+PROCcheck("OS_File 6 reaches FSEntry_File", FNfile_error(6, prefix$ + ".file") = err_DoesNothing%)
+
+REM OS_File 10 (save with type): reaches FSEntry_File 0
+SYS "XOS_File",10,prefix$ + ".file",&FFF,,buffer%,buffer%+16 TO e%;flags%
+PROCcheck("OS_File 10 reaches FSEntry_File", FNerrnum(e%, flags%) = err_DoesNothing%)
+
+REM OS_Find for reading and for creating: reaches FSEntry_Open
+SYS "XOS_Find",&4F,prefix$ + ".file" TO e%;flags%
+PROCcheck("OS_Find &4F reaches FSEntry_Open", FNerrnum(e%, flags%) = err_DoesNothing%)
+SYS "XOS_Find",&8F,prefix$ + ".file" TO e%;flags%
+PROCcheck("OS_Find &8F reaches FSEntry_Open", FNerrnum(e%, flags%) = err_DoesNothing%)
+
+REM OS_GBPB 10 (directory enumeration): reaches FSEntry_Func 19
+SYS "XOS_GBPB",10,prefix$,buffer%,10,0,1024,0 TO e%;flags%
+PROCcheck("OS_GBPB 10 reaches FSEntry_Func", FNerrnum(e%, flags%) = err_DoesNothing%)
+
+REM OS_FSControl 25 (rename): reaches FSEntry_Func 8
+SYS "XOS_FSControl",25,prefix$ + ".old",prefix$ + ".new" TO e%;flags%
+PROCcheck("OS_FSControl 25 reaches FSEntry_Func", FNerrnum(e%, flags%) = err_DoesNothing%)
+
+REM Removing the module removes the filing system
+PROCkill(fsname$)
+PROCcheck("module is removed", NOT FNmodule_present(fsname$))
+PROCcheck("filing system is removed", (FNfile_error(5, prefix$ + ".file") AND &FFFF00) <> errbase%)
+
+REM --- Production build: no medium ---------------------------------------
+PRINT "Production build (rm32.DummyFS):"
+PROCload("rm32.DummyFS")
+PROCcheck("module loads without a medium", FNmodule_present(fsname$))
+PROCcheck("OS_File 5 reports no medium", FNfile_error(5, prefix$ + ".file") = err_NoMedium%)
+SYS "XOS_Find",&4F,prefix$ + ".file" TO e%;flags%
+PROCcheck("OS_Find reports no medium", FNerrnum(e%, flags%) = err_NoMedium%)
+SYS "XOS_GBPB",10,prefix$,buffer%,10,0,1024,0 TO e%;flags%
+PROCcheck("OS_GBPB 10 reports no medium", FNerrnum(e%, flags%) = err_NoMedium%)
+PROCkill(fsname$)
+
+REM --- Re-registration ---------------------------------------------------
+PRINT "Re-registration:"
+PROCload("rm32.DummyFSTest")
+PROCcheck("test build reloads after removal", FNfile_error(5, prefix$ + ".file") = err_DoesNothing%)
+PROCkill(fsname$)
+
+REM --- Summary -----------------------------------------------------------
+PRINT
+PRINT "Passed: ";passes%;"  Failed: ";failures%
+IF failures% > 0 THEN ERROR EXT 1, STR$(failures%) + " test(s) failed"
+PRINT "All tests passed"
+END
+
+REM Record the outcome of one check
+DEFPROCcheck(name$, ok%)
+IF ok% THEN
+  passes% += 1
+  PRINT "  PASS: ";name$
+ELSE
+  failures% += 1
+  PRINT "  FAIL: ";name$
+ENDIF
+ENDPROC
+
+REM Load a module, failing the run if it cannot be loaded
+DEFPROCload(path$)
+OSCLI "RMLoad " + path$
+ENDPROC
+
+REM Remove a module if it is present
+DEFPROCkill(name$)
+IF FNmodule_present(name$) THEN OSCLI "RMKill " + name$
+ENDPROC
+
+REM Is a module of the given name loaded?
+DEFFNmodule_present(name$)
+LOCAL flags%
+SYS "XOS_Module",18,name$ TO ;flags%
+= ((flags% AND 1) = 0)
+
+REM The error number from an X-SWI result, or 0 if there was no error
+DEFFNerrnum(e%, flags%)
+IF (flags% AND 1) = 0 THEN = 0
+= e%!0
+
+REM The error number from an OS_File call, or 0 if it succeeded
+DEFFNfile_error(reason%, path$)
+LOCAL e%, flags%
+SYS "XOS_File",reason%,path$ TO e%;flags%
+= FNerrnum(e%, flags%)

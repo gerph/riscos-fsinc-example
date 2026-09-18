@@ -1,0 +1,109 @@
+/*******************************************************************
+ * File:        provider
+ * Purpose:     The production provider: the code that reaches the
+ *              real medium your filing system presents. See
+ *              h.provider for the interface it implements, and
+ *              prminxml/fsinc.xml ("The provider layer") for how the
+ *              layers above it use it.
+ *
+ *              As supplied, this provider has no medium: provider_open
+ *              always reports err_NoMedium, so the template filing
+ *              system registers with FileSwitch in the "no medium"
+ *              state and every FileSwitch operation on it fails with
+ *              that error. Replace the bodies below with code that
+ *              opens, sizes and reads your storage - for example
+ *              through the BlockDevices interface, a podule driver,
+ *              or a network connection - keeping the interface in
+ *              h.provider unchanged so that c.fsdata and the c._*
+ *              files need no alteration.
+ *
+ *              To exercise the data and FileSwitch layers without any
+ *              hardware, build with TEST=1 instead, which links
+ *              c.testprov in place of this file.
+ * Author:      YOUR NAME HERE
+ * Date:        18 Sep 2026
+ ******************************************************************/
+
+#ifndef __DUMMYFSDUMMYFS_H
+#include "dummyfs.h"
+#endif
+
+/*
+   The provider's private state. Put whatever your storage access
+   needs here: a device handle, a block size, a cached sector buffer,
+   and so on. Nothing outside this file looks inside it.
+ */
+struct provider_context
+{
+    provider_offset size;       /* size of the medium, in bytes */
+};
+
+/* Attach to the medium: see h.provider */
+_kernel_oserror *provider_open(provider_context **ctx)
+{
+    *ctx = NULL;
+
+    /*
+       Locate and open your medium here. If it is present, allocate a
+       provider_context (with malloc, or from a static if there is only
+       ever one), fill in its size, store the pointer in *ctx, and
+       return NULL.
+
+       If the medium is absent (drive empty, device not connected)
+       return err_NoMedium: the module still initialises, and reports
+       the absence cleanly on every FileSwitch call. Reserve other
+       errors for genuine failures, such as being unable to claim
+       memory, which should stop the module loading.
+     */
+    return err_NoMedium;
+}
+
+/* Detach from the medium: see h.provider */
+void provider_close(provider_context *ctx)
+{
+    if (ctx == NULL)
+    {
+        return;
+    }
+
+    /*
+       Release the device, then free the context. This is called on
+       finalisation after the filing system has been removed from
+       FileSwitch (so no file is still open on it), and on medium
+       removal.
+     */
+    free(ctx);
+}
+
+/* Size of the medium: see h.provider */
+provider_offset provider_size(provider_context *ctx)
+{
+    return ctx->size;
+}
+
+/* Checked range read: see h.provider */
+_kernel_oserror *provider_read(provider_context *ctx,
+                               provider_offset offset,
+                               void *buffer,
+                               unsigned int length)
+{
+    /*
+       Always check the range first, whatever the storage: the data
+       layer relies on this provider never reading beyond the medium.
+       Keep the check in this form (rather than 'offset + length >
+       size') so that it cannot be defeated by the addition wrapping.
+     */
+    if (offset > ctx->size || length > ctx->size - offset)
+    {
+        return err_BadParameters;
+    }
+
+    /*
+       Transfer 'length' bytes from 'offset' on the medium into
+       'buffer'. Remember that the buffer may not be word aligned, and
+       that a block-addressed device needs the partial leading and
+       trailing blocks handling here.
+     */
+    buffer = buffer;
+    return err_NoMedium;
+}

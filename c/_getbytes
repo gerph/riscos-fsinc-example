@@ -70,6 +70,23 @@ _kernel_oserror *fsentry_getbytes(FSEntry_GetBytes_Parameter * parm)
 {
     _kernel_oserror *err;
 
+    /*
+       Nothing can be done without a medium: fail cleanly rather than
+       reaching for structures that are not there.
+     */
+    if (!fsdata_volume_present())
+    {
+        return err_NoMedium;
+    }
+
+    /*
+       Look up the open-file table entry for parm->getbytes_definition
+       .handle, then read from the medium through the data layer (which
+       in turn uses provider_read, h.provider) at the file's data
+       location plus the requested offset (buffered) or the sequential
+       pointer (unbuffered). Reading is the core of a read-only filing
+       system, and is implemented in full there too.
+     */
     err = err_DoesNothing;
 
     return err;

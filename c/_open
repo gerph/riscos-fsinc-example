@@ -33,6 +33,15 @@ _kernel_oserror *fsentry_open(FSEntry_Open_Parameter * parm)
 {
     _kernel_oserror *err;
 
+    /*
+       Nothing can be done without a medium: fail cleanly rather than
+       reaching for structures that are not there.
+     */
+    if (!fsdata_volume_present())
+    {
+        return err_NoMedium;
+    }
+
     switch (parm->open_definition.reason)
     {
         case FSEntry_Open_Reason_Update:
@@ -66,6 +75,9 @@ _kernel_oserror *fsentry_open(FSEntry_Open_Parameter * parm)
                                 buffer_size (only if buffer_size
                                 non-zero)
 
+               Read-only filing system: return err_WriteProtected
+               here, since the caller is asking for write access.
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12210
              */
             err = err_DoesNothing;
@@ -86,6 +98,13 @@ _kernel_oserror *fsentry_open(FSEntry_Open_Parameter * parm)
                   write-permitted bit clear in
                   parm->open_result.information_word)
 
+               Typically: locate the object with fsdata_find
+               (h.fsdata), allocate an entry in your open-file table
+               holding the descriptor and a sequential pointer of 0,
+               and return that entry's index (plus one, so that it is
+               never zero) as the handle. This is the one FSEntry_Open
+               reason code a read-only filing system implements.
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12210
              */
             err = err_DoesNothing;
@@ -105,6 +124,8 @@ _kernel_oserror *fsentry_open(FSEntry_Open_Parameter * parm)
 
                => (only the common fields above)
                <= (as FSEntry_Open_Reason_Update above)
+
+               Read-only filing system: return err_WriteProtected.
 
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12210
              */

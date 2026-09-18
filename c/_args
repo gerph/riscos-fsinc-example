@@ -26,6 +26,15 @@ _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
 {
     _kernel_oserror *err;
 
+    /*
+       Nothing can be done without a medium: fail cleanly rather than
+       reaching for structures that are not there.
+     */
+    if (!fsdata_volume_present())
+    {
+        return err_NoMedium;
+    }
+
     switch (parm->reason)
     {
         case FSEntry_Args_Reason_ReadSequentialFilePointer:
@@ -60,6 +69,10 @@ _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
 
                => parm->arg.sequential_pointer-> new file pointer,
                                 as a byte offset (R2)
+
+               Read-only filing system: implement this normally for a
+               pointer within the extent, and return err_WriteProtected
+               (rather than extending) for one beyond it.
 
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12239
              */
@@ -103,6 +116,8 @@ _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
                ignore the call rather than returning an error.
 
                => parm->arg.extent-> new extent, in bytes (R2)
+
+               Read-only filing system: return err_WriteProtected.
 
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12249
                     http://www.riscos.com/support/developers/prm/writefs.html#idx-12250
@@ -179,6 +194,8 @@ _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
                <= parm->arg.allocation_size (R2) = storage actually
                                 ensured, in bytes
 
+               Read-only filing system: return err_WriteProtected.
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12269
              */
             err = err_DoesNothing;
@@ -196,6 +213,8 @@ _kernel_oserror *fsentry_args(FSEntry_Args_Parameter * parm)
                   parm->arg.write_zeros.number-> number of zero bytes
                                 to write, a multiple of the buffer
                                 size (R3)
+
+               Read-only filing system: return err_WriteProtected.
 
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12273
              */

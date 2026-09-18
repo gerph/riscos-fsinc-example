@@ -1,0 +1,108 @@
+/*******************************************************************
+ * File:        testprov
+ * Purpose:     The test provider: an implementation of the h.provider
+ *              interface backed by an image held in the module's own
+ *              memory. It exists so that the data layer (c.fsdata)
+ *              and the FileSwitch layer (the c._* files) can be
+ *              exercised, repeatably and without any hardware, by
+ *              loading the module and driving FileSwitch from BASIC
+ *              (see tests.TestFS).
+ *
+ *              This file is linked ONLY into the test build
+ *              (riscos-amu -f Makefile,fe1 ram TEST=1, which builds
+ *              rm32.DummyFSTest) in place of c.provider. It is not
+ *              part of the production module, and it must not be
+ *              made reachable from the production module through a
+ *              SWI or *command: a test fixture that can be mounted
+ *              at run time is a feature that has to be supported.
+ *
+ *              Replace the contents of test_image with an image in
+ *              your filing system's own on-medium format, containing
+ *              the objects your tests expect to find - the template
+ *              image is a stand-in with no structure of its own,
+ *              because the template data layer does not interpret
+ *              the medium.
+ * Author:      YOUR NAME HERE
+ * Date:        18 Sep 2026
+ ******************************************************************/
+
+#ifndef __DUMMYFSDUMMYFS_H
+#include "dummyfs.h"
+#endif
+
+/*
+   The in-memory medium. Generate this from a real image of your
+   filing system's format, small enough to live comfortably in the
+   RMA alongside the module: a few kilobytes is ample for a directory
+   or two of short files. Keep it 'const' so that it lives in the
+   module's code area, not in the RMA workspace.
+ */
+static const unsigned char test_image[] =
+{
+    /* Offset 0: a signature, so that a provider_read of the start of
+       the medium can be checked to have delivered the right bytes */
+    'F', 'S', 'i', 'n', 'C', ' ', 't', 'e', 's', 't', ' ', 'i', 'm', 'a', 'g', 'e',
+    /* Offset 16 onwards: filler to give the medium some extent */
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+};
+
+/*
+   There is only ever one test medium, so its context is static
+   rather than allocated.
+ */
+struct provider_context
+{
+    const unsigned char *image;
+    provider_offset size;
+};
+
+static provider_context test_context;
+
+/* Attach to the medium: see h.provider */
+_kernel_oserror *provider_open(provider_context **ctx)
+{
+    test_context.image = test_image;
+    test_context.size = sizeof(test_image);
+    *ctx = &test_context;
+    return NULL;
+}
+
+/* Detach from the medium: see h.provider */
+void provider_close(provider_context *ctx)
+{
+    if (ctx == NULL)
+    {
+        return;
+    }
+    ctx->image = NULL;
+    ctx->size = 0;
+}
+
+/* Size of the medium: see h.provider */
+provider_offset provider_size(provider_context *ctx)
+{
+    return ctx->size;
+}
+
+/* Checked range read: see h.provider */
+_kernel_oserror *provider_read(provider_context *ctx,
+                               provider_offset offset,
+                               void *buffer,
+                               unsigned int length)
+{
+    if (ctx->image == NULL)
+    {
+        return err_NoMedium;
+    }
+
+    /* The same wrap-safe range check the production provider must make */
+    if (offset > ctx->size || length > ctx->size - offset)
+    {
+        return err_BadParameters;
+    }
+
+    memcpy(buffer, ctx->image + offset, length);
+    return NULL;
+}

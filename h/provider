@@ -1,0 +1,124 @@
+/*******************************************************************
+ * File:        provider
+ * Purpose:     The provider layer: the interface through which the
+ *              rest of the filing system reads the medium it
+ *              presents. Everything above this interface (the data
+ *              layer in c.fsdata, and the FileSwitch layer in the
+ *              c._* files) sees the medium only as a range of bytes
+ *              of known size, read through provider_read; it never
+ *              knows whether those bytes come from a disc, a block
+ *              device, a network connection, or (in the test build)
+ *              an image compiled into the module.
+ *
+ *              Two implementations of this interface are supplied:
+ *                c.provider  - the production provider, which you
+ *                              replace with code that reaches your
+ *                              real storage (for example through
+ *                              BlockDevices, or a driver of your own)
+ *                c.testprov  - a provider backed by an in-memory image,
+ *                              linked only into the test build
+ *                              (riscos-amu ... TEST=1) so that the
+ *                              layers above it can be exercised
+ *                              without any hardware.
+ *              Only one of the two is linked into any given module.
+ *
+ *              The provider is deliberately not reachable through
+ *              any FileSwitch entry point, SWI or *command: it is an
+ *              internal interface, chosen at build time, and the
+ *              filing system's public behaviour is identical
+ *              whichever provider is present.
+ * Author:      YOUR NAME HERE
+ * Date:        18 Sep 2026
+ ******************************************************************/
+
+#ifndef __DUMMYFSPROVIDER_H
+#define __DUMMYFSPROVIDER_H
+
+/*
+   The provider's private state. Callers only ever hold a pointer to
+   it; its contents are defined by, and private to, the provider
+   implementation.
+ */
+typedef struct provider_context provider_context;
+
+/*
+   A byte offset within the medium. The template addresses the medium
+   in bytes with a 32-bit offset, which is sufficient for media up to
+   4 GB; a filing system that must present a larger medium should
+   address it in fixed-size blocks instead, changing this type and the
+   units of provider_read and provider_size together.
+ */
+typedef unsigned int provider_offset;
+
+/*******************************************************************
+ Function:      provider_open
+ Description:   Attach to the medium and allocate the provider's
+                context. Called once from module initialisation
+                (c.module), before the data layer is asked to mount
+                the volume. If no medium is present, return
+                err_NoMedium: this is not an initialisation failure,
+                and the filing system will register with FileSwitch
+                anyway, in the "no medium" state, so that every
+                FileSwitch call fails cleanly until a medium arrives.
+ Parameters:    ctx-> where to store the pointer to the newly
+                    allocated context; set to NULL on failure
+ Returns:       NULL if the medium was attached; err_NoMedium if no
+                medium is present; or another error (for example
+                err_NoMemory) if the provider could not be set up
+ ******************************************************************/
+extern _kernel_oserror *provider_open(provider_context **ctx);
+
+/*******************************************************************
+ Function:      provider_close
+ Description:   Detach from the medium and free the context. Called
+                from the data layer when the volume is unmounted,
+                which happens on module finalisation and whenever the
+                medium is removed. Must be safe to call with a NULL
+                context.
+ Parameters:    ctx-> the context returned by provider_open, or NULL
+ Returns:       (nothing)
+ ******************************************************************/
+extern void provider_close(provider_context *ctx);
+
+/*******************************************************************
+ Function:      provider_size
+ Description:   Return the size of the medium, so that the data layer
+                can validate the structures it reads against the
+                medium's real extent and never ask for bytes that lie
+                beyond it.
+ Parameters:    ctx-> the context returned by provider_open
+ Returns:       the size of the medium, in bytes
+ ******************************************************************/
+extern provider_offset provider_size(provider_context *ctx);
+
+/*******************************************************************
+ Function:      provider_read
+ Description:   Read a range of bytes from the medium into memory.
+                This is a checked read: an implementation must reject
+                any range that does not lie entirely within the
+                medium (offset + length > provider_size()) with an
+                error, rather than reading past the end or returning
+                a short transfer. Callers may therefore rely on the
+                whole buffer having been filled when NULL is
+                returned.
+
+                Reads are not required to be aligned to any block
+                size; a provider backed by block-addressed storage
+                should perform the partial block handling itself.
+ Parameters:    ctx-> the context returned by provider_open
+                offset = the byte offset within the medium to start
+                    reading from
+                buffer-> the memory to fill; not necessarily word
+                    aligned
+                length = the number of bytes to read
+ Returns:       NULL if the buffer was filled; err_BadParameters if
+                the range lies outside the medium; err_NoMedium if
+                the medium has gone away; or a provider-specific
+                error for a failed transfer
+ ******************************************************************/
+extern _kernel_oserror *provider_read(provider_context *ctx,
+                                      provider_offset offset,
+                                      void *buffer,
+                                      unsigned int length);
+
+#endif

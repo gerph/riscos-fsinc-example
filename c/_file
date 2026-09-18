@@ -30,6 +30,15 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
 {
     _kernel_oserror *err;
 
+    /*
+       Nothing can be done without a medium: fail cleanly rather than
+       reaching for structures that are not there.
+     */
+    if (!fsdata_volume_present())
+    {
+        return err_NoMedium;
+    }
+
     switch (parm->reason)
     {
         case FSEntry_File_Reason_LoadFile:
@@ -50,6 +59,11 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                                 attributes
                   parm->special_field (R6) = pointer to the object's
                                 printable, non-wildcarded leafname
+
+                  Implemented normally by a read-only filing system:
+                  fsdata_find, fsdata_to_riscos for the results, then
+                  read the data through the data layer into
+                  parm->extras.location.start.
 
                   See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12335
              */
@@ -75,6 +89,9 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                                 data is read from it (R4-R5)
                <= parm->special_field (R6) = pointer to the object's
                                 printable leafname
+
+               Read-only filing system: return err_WriteProtected.
+
                   See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12319
              */
             err = err_DoesNothing;
@@ -97,6 +114,8 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                <= parm->special_field (R6) = pointer to the object's
                                 printable leafname
 
+               Read-only filing system: return err_WriteProtected.
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12290
              */
             err = err_DoesNothing;
@@ -117,6 +136,8 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                   parm->info-> new load/execute addresses (R2-R3)
                   parm->extras.info.attributes-> new attributes (R5)
 
+               Read-only filing system: return err_WriteProtected.
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12294
              */
             err = err_DoesNothing;
@@ -132,6 +153,8 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                => parm->name-> the filename (R1)
                   parm->info.load_exec.load_address->
                                 new load address (R2)
+
+               Read-only filing system: return err_WriteProtected.
 
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12299
              */
@@ -149,6 +172,8 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                   parm->info.load_exec.execute_address->
                                 new execute address (R3)
 
+               Read-only filing system: return err_WriteProtected.
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12304
              */
             err = err_DoesNothing;
@@ -162,6 +187,9 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                => parm->name-> the filename (R1)
                   parm->extras.info.attributes->
                                 new attributes (R5)
+
+               Read-only filing system: return err_WriteProtected.
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12308
              */
             err = err_DoesNothing;
@@ -205,6 +233,13 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                   parm->extras.info.length (R4) = length
                   parm->extras.info.attributes (R5) = attributes
 
+               Typically: fsdata_find(parm->name, &desc), then
+               fsdata_to_riscos(&desc, &cat) and copy cat's fields to
+               the result fields above, with the object type placed in
+               parm->reason (R0). A "not found" result from fsdata_find
+               becomes ObjectType_NotFound with no error. Implemented
+               normally by a read-only filing system.
+
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12311
              */
             err = err_DoesNothing;
@@ -228,6 +263,8 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                                 immediately before deletion
                   parm->extras.info.attributes (R5) = the attributes
                                 it had immediately before deletion
+
+               Read-only filing system: return err_WriteProtected.
 
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12315
              */
@@ -254,6 +291,8 @@ _kernel_oserror *fsentry_file(FSEntry_File_Parameter * parm)
                                 for a sensible default; ignore this if
                                 your filing system has no fixed-size
                                 directories (R4)
+
+               Read-only filing system: return err_WriteProtected.
 
                See: http://www.riscos.com/support/developers/prm/writefs.html#idx-12323
              */
